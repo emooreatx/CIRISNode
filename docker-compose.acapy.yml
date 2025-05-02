@@ -1,0 +1,26 @@
+version: '3.7'
+services:
+  acapy:
+    image: bcgovimages/aries-cloudagent:py36-1.16-1_0.7.2
+    ports:
+      - "3001:3001"
+      - "8021:8021"
+    command: >
+      start
+      --inbound-transport http 0.0.0.0 8021
+      --outbound-transport http
+      --admin 0.0.0.0 3001
+      --admin-insecure-mode
+      --wallet-type indy
+      --wallet-name ciris-wallet
+      --wallet-key test123
+      --auto-provision
+      --auto-accept-invites
+      --auto-accept-requests
+      --auto-respond-messages
+      --auto-respond-credential-proposal
+      --auto-respond-credential-offer
+      --auto-respond-credential-request
+      --auto-store-credential
+      --endpoint http://host.docker.internal:8021
+      --genesis-url https://raw.githubusercontent.com/sovrin-foundation/sovrin/master/sovrin/pool_transactions_builder_genesis

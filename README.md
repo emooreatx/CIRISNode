@@ -1,7 +1,7 @@
 # CIRISNode
 
 > Alignment & governance back-plane for the CIRIS ecosystem  
-> Status: **CONCEPTUAL — no code or containers yet**
+> Status: **DEVELOPMENT — functional with stubbed integrations**
 
 ---
 
@@ -32,7 +32,7 @@ CIRISNode (née “EthicsEngine Enterprise”) is the remote utility that CIRISA
 
 ---
 
-## 3  Proposed API Endpoints
+## 3  API Endpoints
 
 - **GET** /api/v1/health  
 - **POST** /api/v1/did/issue → `{ did, verkey, token }`  
@@ -92,9 +92,9 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ### Completed Work Summary
 
-## API Layer
+#### API Layer
 
-- Fully implemented all endpoints listed in section `3 Proposed API Endpoints`
+- Fully implemented all endpoints listed in section `3 API Endpoints`
 - Each route structured into modular FastAPI routers across:
   - `cirisnode/api/benchmarks/routes.py`
   - `cirisnode/api/wa/routes.py`
@@ -102,7 +102,7 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ---
 
-## Authentication
+#### Authentication
 
 - JWT-based route protection added using FastAPI middleware
 - Token issued via `/api/v1/did/issue`
@@ -110,7 +110,7 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ---
 
-## Matrix Integration
+#### Matrix Integration
 
 - Matrix access tokens can be issued via `/api/v1/matrix/token`
 - Background task (`audit_anchoring`) implemented to send SHA-256 root summaries to a Matrix transparency room
@@ -118,7 +118,7 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ---
 
-## Ethical Pipeline (HE-300/EEE)
+#### Ethical Pipeline (HE-300/EEE)
 
 - Core HE-300 benchmark logic included
 - Benchmark runs triggered via `/api/v1/benchmarks/run`
@@ -127,9 +127,7 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ---
 
----
-
-## DID / SSI Support (Stub)
+#### DID / SSI Support (Stub)
 
 - Aries agent integration is currently **stubbed**
 - DID issuance returns placeholder keys and tokens
@@ -138,7 +136,7 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ---
 
-## Audit Anchoring
+#### Audit Anchoring
 
 - A daily task (via APScheduler) publishes digests of benchmark activity
 - SHA-256 hash + timestamp stored
@@ -146,7 +144,7 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ---
 
-## Docker + CI/CD Support
+#### Docker + CI/CD Support
 
 - Dockerfile created to build and run app with `uvicorn --workers`
 - Docker-based test container enabled (copies `tests/` folder and runs pytest)
@@ -157,134 +155,241 @@ This section outlines everything completed during Phase 2 of CIRISNode’s devel
 
 ### 🛠 Setup Instructions
 
-Clone and start development environment:
+This section provides detailed, step-by-step instructions to set up and run CIRISNode on your local machine or in a Docker container. Follow these steps carefully to ensure a successful setup.
 
----
+#### Prerequisites
+
+- **Python 3.10+**: Ensure Python 3.10 or higher is installed on your system. You can download it from [python.org](https://www.python.org/downloads/).
+- **Git**: Required to clone the repository. Install from [git-scm.com](https://git-scm.com/downloads).
+- **Docker**: Optional, for containerized setup. Install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop).
+- **Virtual Environment**: Recommended for isolating project dependencies.
+
+#### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/BradleyMatera/CIRISNode
 cd CIRISNode
+```
+
+#### Step 2: Set Up a Virtual Environment
+
+Create and activate a virtual environment to manage project dependencies.
+
+```bash
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+```
+
+#### Step 3: Install Dependencies
+
+Install the required Python packages listed in `requirements.txt`.
+
+```bash
 pip install -r requirements.txt
 ```
 
-## Run the server
+#### Step 4: Configure Environment Variables
 
----
-
-```bash
-uvicorn cirisnode.main:app --reload
-```
-
-### Environment file (.env) must contain
+Create a `.env` file in the project root directory with the necessary environment variables. Use the following template as a starting point:
 
 ```env
+# General Configuration
+ENVIRONMENT=dev
 JWT_SECRET=supersecretkey
-MATRIX_HOMESERVER=https://matrix.example.org
+
+# Matrix Configuration
+MATRIX_LOGGING_ENABLED=false
+MATRIX_HOMESERVER_URL=https://matrix.example.org
 MATRIX_ACCESS_TOKEN=dummytoken
 MATRIX_ROOM_ID=!room:matrix.org
+
+# Authorization Configuration
+ALLOWED_BLESSED_DIDS=did:example:12345
+ALLOWED_BENCHMARK_IPS=127.0.0.1
+ALLOWED_BENCHMARK_TOKENS=sk_test_abc123
 ```
 
-## Run the full test suite locally
+- **ENVIRONMENT**: Set to `dev` for development, `test` for testing, or `prod` for production. This affects authentication bypass and API documentation visibility.
+- **JWT_SECRET**: A secret key for signing JWT tokens. Replace with a secure value in production.
+- **MATRIX_LOGGING_ENABLED**: Set to `true` to enable Matrix logging, `false` to disable.
+- **MATRIX_HOMESERVER_URL**, **MATRIX_ACCESS_TOKEN**, **MATRIX_ROOM_ID**: Configure these for Matrix integration if enabled. Use placeholder values if not using Matrix.
+- **ALLOWED_BLESSED_DIDS**, **ALLOWED_BENCHMARK_IPS**, **ALLOWED_BENCHMARK_TOKENS**: Define allowed DIDs, IPs, and tokens for benchmark access. Adjust for your test or production environment.
 
-### pytest -v tests/
+#### Step 5: Run the Server Locally
 
-### Run via Docker
+Start the FastAPI server using `uvicorn` with auto-reload enabled for development.
 
 ```bash
-
-docker build -t cirisnode:latest .
-docker run -d -p 8001:8001 --env-file .env cirisnode:latest
+uvicorn cirisnode.main:app --reload --port 8001
 ```
 
-## Test inside container
+- The server will run on `http://localhost:8001`.
+- Access the health check endpoint at `http://localhost:8001/api/v1/health` to confirm the server is running (should return `{"status": "ok"}`).
+- Explore the API documentation at `http://localhost:8001/docs` (available in `dev` or `test` environments).
 
-## Add this to Dockerfile
+#### Step 6: Run the Test Suite Locally
+
+Ensure your environment is set to `test` by setting `ENVIRONMENT=test` in your `.env` file or by using environment variables in the command. Install test dependencies if not already installed, then run the tests.
+
+```bash
+pip install pytest pytest-asyncio pytest-env httpx
+pytest tests/ -v
+```
+
+- Tests cover health checks, JWT authentication, benchmark workflows, DID issuance/verification, and more.
+- Ensure `ENVIRONMENT=test` to enable test-specific bypass logic for protected routes.
+
+#### Step 7: Run Using Docker (Optional)
+
+For a containerized setup, use Docker to build and run CIRISNode.
+
+1. **Build the Docker Image**
+
+```bash
+docker build -t cirisnode:latest .
+```
+
+2. **Run the Container**
+
+```bash
+docker run -d -p 8001:8001 --env-file .env --name cirisnode cirisnode:latest
+```
+
+- Maps port 8001 on your host to port 8001 in the container.
+- Uses the `.env` file for environment variables.
+- Access the health check at `http://localhost:8001/api/v1/health`.
+
+3. **View Container Logs**
+
+```bash
+docker logs cirisnode
+```
+
+4. **Stop the Container**
+
+```bash
+docker stop cirisnode
+docker rm cirisnode
+```
+
+#### Step 8: Run Tests in Docker (Optional)
+
+To run the test suite inside a Docker container, modify the Dockerfile or create a separate test image.
+
+1. **Create a Test Dockerfile or Modify Existing**
+
+Add the following to your `Dockerfile` or create a separate `Dockerfile.test`:
 
 ```dockerfile
-RUN pip install pytest pytest-asyncio httpx
-COPY ./tests /app/tests
-CMD ["pytest", "-v", "tests/"]
+# Install test dependencies
+RUN pip install pytest pytest-asyncio pytest-env httpx
 
+# Copy test files
+COPY ./tests /app/tests
+
+# Set environment for testing
+ENV ENVIRONMENT=test
+
+# Command to run tests
+CMD ["pytest", "-v", "tests/"]
 ```
 
-## Run the test suite in a container:
+2. **Build and Run Test Container**
 
 ```bash
-docker build -t cirisnode-test:latest .
+docker build -t cirisnode-test:latest -f Dockerfile.test .
 docker run --rm --env-file .env cirisnode-test:latest
 ```
 
----
-Export OpenAPI spec:
+- `--rm` automatically removes the container after execution.
+- Outputs test results to the console.
+
+#### Step 9: Export OpenAPI Specification
+
+If you want to save the OpenAPI specification for documentation or client generation:
 
 ```bash
-
-curl http://localhost:8000/openapi.json > docs/api-spec/openapi.json
-
+curl http://localhost:8001/openapi.json > docs/api-spec/openapi.json
 ```
----
 
-### Errors and What to Do
-
-- **Connection Reset by Peer or "Not Found" Error when accessing http://localhost:8000/api/v1/health**: This error occurs if you are trying to access the application on the wrong port or if the port mapping in the Docker run command does not match the port the application is running on inside the container. The CIRISNode application runs on port 8001 by default, not 8000. Ensure your Docker run command maps port 8001 on the host to port 8001 in the container using `-p 8001:8001`. If you encounter this issue, stop the current container with `docker stop <container_id>`, and start a new one with the correct port mapping as shown in the setup instructions. Always access the application at `http://localhost:8001/api/v1/health` to check its status.
-
-- **Docker Build Fails with "No such file or directory: 'requirements.txt'"**: This error happens if the `requirements.txt` file is missing. Generate it by running `pip freeze > requirements.txt` in your virtual environment before building the Docker image.
-
-- **Unable to Access API Endpoints**: Ensure the container is running with `docker ps -a`. If it's not running, start it with the correct command. Check the container logs with `docker logs <container_id>` for any errors during startup. Verify that the `.env` file is correctly set up with necessary environment variables and is passed to the container using `--env-file .env`. To confirm if the application is up and running, open a browser and navigate to `http://localhost:8001/api/v1/health`. If the application is working correctly, you should see a response with `{"status":"ok"}`. Additionally, you can access the API documentation and interactive Swagger UI at `http://127.0.0.1:8001/docs#/` to explore all available endpoints and test them directly from the browser. Note that some endpoints may require authentication or specific request headers when accessed via a browser.
+- Ensure the server is running on port 8001.
+- The OpenAPI JSON will be saved to `docs/api-spec/openapi.json`.
 
 ---
 
-🧪 Test Suite Coverage
+### Errors and Troubleshooting
 
-All test files are located in tests/ and cover:
-	•	/health endpoint
-	•	JWT issuance + protection
-	•	Matrix message send
-	•	Benchmark run and result lifecycle (HE-300)
-	•	DID issuance + verification
-	•	WA ticket submission + tracking
-	•	AI ethical inference (EEE logic)
-	•	Async support (with pytest-asyncio)
-	•	Config loading from .env
+- **Connection Reset by Peer or "Not Found" Error when accessing http://localhost:8000/api/v1/health**: This error occurs if you are trying to access the application on the wrong port. CIRISNode runs on port 8001 by default, not 8000. Ensure you access `http://localhost:8001/api/v1/health`. If using Docker, verify the port mapping with `-p 8001:8001` in your `docker run` command. If the issue persists, check if the server or container is running with `ps aux | grep uvicorn` or `docker ps`, and restart if necessary.
 
----
+- **Docker Build Fails with "No such file or directory: 'requirements.txt'"**: This happens if `requirements.txt` is missing or not in the project root. Generate it by running `pip freeze > requirements.txt` in your virtual environment before building the image. Ensure the file is committed to the repository if cloning from GitHub.
 
-🔒 Security
-	•	Routes are protected by JWT
-	•	JWTs are issued per DID
-	•	Matrix access is scoped by token
-	•	.env secrets must be protected in deployment
+- **Unable to Access API Endpoints**: If endpoints return errors or are inaccessible:
+  - Confirm the server is running (`ps aux | grep uvicorn` or `docker ps` for containers).
+  - Check logs for startup errors (`docker logs <container_id>` if using Docker).
+  - Verify the `.env` file exists and contains required variables like `JWT_SECRET`. Ensure `--env-file .env` is used in `docker run` commands.
+  - Test the health endpoint at `http://localhost:8001/api/v1/health`. A response of `{"status": "ok"}` indicates the server is operational.
+  - Access the interactive Swagger UI at `http://localhost:8001/docs` to explore and test endpoints directly from a browser (available in `dev` or `test` environments). Note that some endpoints require authentication headers.
 
----
+- **Test Failures Due to Environment Configuration**: If tests fail with authentication errors, ensure `ENVIRONMENT=test` is set in your `.env` file or as an environment variable when running `pytest`. This enables bypass logic for protected routes during testing.
 
-🔍 Still To Do (Phase 3)
+- **Matrix Logging Errors**: If Matrix logging is enabled (`MATRIX_LOGGING_ENABLED=true`) but credentials or URLs are incorrect, you’ll see errors in logs. Set `MATRIX_LOGGING_ENABLED=false` in `.env` to disable Matrix integration, or provide valid Matrix configuration values.
 
-Not yet implemented as of this commit.
+- **General Dependency Issues**: If `pip install` fails or dependencies conflict, ensure you're using Python 3.10+ and a clean virtual environment. Remove and recreate the virtual environment if needed (`rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`).
 
-	•	✅ Aries Agent full implementation (RFC 0036, 0037, etc.)
-	•	✅ Live Matrix token exchange using login API
-	•	✅ Proper Verifiable Credential issuance (via Aries)
-	•	✅ Secure EEE pipeline replacement for current stubs
-	•	✅ Swagger UI redirect at root (/)
-	•	✅ Helm chart or ECS definition for AWS-based deploy
-	•	✅ Persistent DB for audit and pipeline storage
-	•	✅ External authentication key store for DID + Matrix
+For additional help, check the GitHub repository issues or contact the project maintainers.
 
 ---
 
-📂 EEE / EthicsEngine Note
+### 🧪 Test Suite Coverage
+
+All test files are located in `tests/` and cover:
+- `/health` endpoint
+- JWT issuance and protection
+- Matrix message sending
+- Benchmark run and result lifecycle (HE-300)
+- DID issuance and verification
+- WA ticket submission and tracking
+- AI ethical inference (EEE logic)
+- Async support (with `pytest-asyncio`)
+- Config loading from `.env`
+
+---
+
+### 🔒 Security
+
+- Routes are protected by JWT.
+- JWTs are issued per DID.
+- Matrix access is scoped by token.
+- `.env` secrets must be protected in deployment. Never commit `.env` to version control; use `.env.example` for templates.
+
+---
+
+### 🔍 Still To Do (Phase 3)
+
+Not yet implemented as of this commit:
+
+- Aries Agent full implementation (RFC 0036, 0037, etc.)
+- Live Matrix token exchange using login API
+- Proper Verifiable Credential issuance (via Aries)
+- Secure EEE pipeline replacement for current stubs
+- Swagger UI redirect at root (/)
+- Helm chart or ECS definition for AWS-based deploy
+- Persistent DB for audit and pipeline storage
+- External authentication key store for DID + Matrix
+
+---
+
+### 📂 EEE / EthicsEngine Note
 
 The original EthicsEngine Enterprise Edition (EEE) benchmark suite is included as a legacy reference. Current behavior mimics that system using deterministic stub logic located in:
 
-cirisnode/utils/inference.py
+`cirisnode/utils/inference.py`
 
 Future iterations should integrate a pluggable AI backend or use Ollama-compatible local inference engines with ethical prompt encoding.
 
 ---
 
-🧵 Final Word
+### 🧵 Final Word
 
 CIRISNode is now fully operational in dev/test environments with full API, Matrix, and testing infrastructure, supporting future integration into the CIRISAgent client ecosystem and Hyperledger Aries stack.
 

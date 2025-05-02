@@ -1,38 +1,54 @@
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, HTTPException, status
+from typing import Dict, Any
 import jwt
 from datetime import datetime, timedelta
-from cirisnode.aries.client import issue_credential, verify_credential
+import os
 
-did_router = APIRouter(tags=["did"])
-SECRET_KEY = "mocked-secret-key-for-development"  # Replace with secure key in production
+did_router = APIRouter()
+
+SECRET_KEY = os.getenv("JWT_SECRET", "supersecretkey")
 ALGORITHM = "HS256"
-TOKEN_EXPIRY_MINUTES = 30
-
-@did_router.post("/create")
-async def create_did():
-    return {"status": "DID created", "did": "did:example:123456"}
-
-@did_router.get("/{did}")
-async def get_did(did: str):
-    return {"did": did, "details": "mocked DID details"}
-
-@did_router.put("/{did}/update")
-async def update_did(did: str):
-    return {"did": did, "status": "updated"}
 
 @did_router.post("/issue")
-async def issue_did(response: Response):
-    # Integration with Aries agent for DID issuance
-    did = "did:aries:789012"
-    payload = {"did": did}
-    credential_result = await issue_credential(payload)
-    expiration = datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINUTES)
-    token = jwt.encode({"sub": did, "exp": expiration}, SECRET_KEY, algorithm=ALGORITHM)
-    return {"status": "DID issued", "did": did, "credential": credential_result["vc"], "token": token}
+async def issue_did(request: Request):
+    try:
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body")
+        did = data.get("did")
+        if not did:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="DID is required")
+        
+        payload = {
+            "sub": "user_id",  # Placeholder for user ID
+            "did": did,
+            "iat": datetime.utcnow(),
+            "exp": datetime.utcnow() + timedelta(hours=1)
+        }
+        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        return {"token": token}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body")
 
 @did_router.post("/verify")
-async def verify_did():
-    # Integration with Aries agent for DID verification
-    vc = {"vc": "mock-vc"}
-    verification_result = await verify_credential(vc)
-    return {"status": "DID verified", "did": "did:aries:789012", "valid": verification_result["valid"]}
+async def verify_did(request: Request):
+    try:
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body")
+        token = data.get("token")
+        if not token:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token is required")
+        
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"valid": True, "did": payload.get("did")}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request body")

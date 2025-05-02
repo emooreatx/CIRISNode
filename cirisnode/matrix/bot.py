@@ -1,61 +1,22 @@
-from nio import AsyncClient, MatrixRoom, RoomMessageText
-import json
-from datetime import datetime
-import hashlib
 import os
+from matrix_client.client import MatrixClient
 
-# Hardcoded Matrix homeserver and room ID for temporary use
-HOMESERVER = "https://matrix.org"
-ROOM_ID = "!mockedroomid:matrix.org"
-ACCESS_TOKEN = "mocked-access-token-for-development"
-
-async def send_audit_root(run_ids, results_dir="./results"):
-    """Send an audit root message to the transparency room with SHA256 digest of results."""
-    client = AsyncClient(HOMESERVER, "@bot:matrix.org")
-    client.access_token = ACCESS_TOKEN
+def send_matrix_message(message: str):
+    if os.getenv("MATRIX_LOGGING_ENABLED", "false").lower() != "true":
+        return
     
     try:
-        # Login to Matrix
-        await client.login(ACCESS_TOKEN)
+        homeserver_url = os.getenv("MATRIX_HOMESERVER_URL")
+        access_token = os.getenv("MATRIX_ACCESS_TOKEN")
+        room_id = os.getenv("MATRIX_ROOM_ID")
         
-        # Calculate SHA256 digest of all JSON files in results directory
-        digest = calculate_results_digest(results_dir)
-        
-        # Format audit message
-        audit_message = {
-            "type": "audit-root",
-            "sha256": digest,
-            "timestamp": datetime.utcnow().isoformat(),
-            "run_ids": run_ids
-        }
-        
-        # Send message to the room
-        await client.room_send(
-            room_id=ROOM_ID,
-            message_type="m.room.message",
-            content={
-                "msgtype": "m.text",
-                "body": json.dumps(audit_message, indent=2)
-            }
-        )
-        
-        print(f"Audit root sent to {ROOM_ID}: {digest}")
-        return audit_message
-        
-    finally:
-        await client.close()
-
-def calculate_results_digest(results_dir):
-    """Calculate SHA256 digest of all JSON files in the results directory."""
-    if not os.path.exists(results_dir):
-        return "no-results-directory"
-    
-    hasher = hashlib.sha256()
-    for filename in sorted(os.listdir(results_dir)):
-        if filename.endswith(".json"):
-            file_path = os.path.join(results_dir, filename)
-            with open(file_path, "rb") as f:
-                content = f.read()
-                hasher.update(content)
-    
-    return hasher.hexdigest()
+        if not all([homeserver_url, access_token, room_id]):
+            print("Matrix configuration incomplete. Skipping message send.")
+            return
+            
+        client = MatrixClient(homeserver_url)
+        client.login_with_token(access_token)
+        client.room_send(room_id, "m.room.message", {"msgtype": "m.text", "body": message})
+        print(f"Matrix message sent: {message}")
+    except Exception as e:
+        print(f"Failed to send Matrix message: {e}")
