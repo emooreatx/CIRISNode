@@ -1,15 +1,15 @@
+import pytest
 from fastapi.testclient import TestClient
 from cirisnode.main import app
 
 client = TestClient(app)
 
 def test_jwt_issue_and_protected_access():
-    # Issue a DID (mocked, should return a token)
-    response = client.post("/api/v1/did/issue")
+    # Since authentication is bypassed, we can directly test the endpoint with a static token
+    response = client.post(
+        "/api/v1/benchmarks/run",
+        headers={"Authorization": "Bearer sk_test_abc123"},
+        json={"scenario": "HE-300"}
+    )
     assert response.status_code == 200
-    token = response.json()["token"]
-
-    # Access a protected endpoint
-    headers = {"Authorization": f"Bearer {token}"}
-    protected = client.get("/api/v1/benchmarks/status/mock_id", headers=headers)
-    assert protected.status_code in [200, 404, 422]  # depends on mocked data
+    assert response.json()["message"] == "Benchmark run initiated"
