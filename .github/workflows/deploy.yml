@@ -19,6 +19,9 @@ jobs:
         with:
           node-version: 16
 
+      - name: "Debug: List files in the runner environment"
+        run: ls -R
+
       - name: Install dependencies (ignores missing lock file)
         run: npm install --no-audit --no-fund
 
