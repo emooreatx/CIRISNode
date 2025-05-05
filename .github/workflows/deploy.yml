@@ -20,10 +20,10 @@ jobs:
           node-version: 16
 
       - name: Install dependencies (ignores missing lock file)
-        run: cd CIRISNode/CIRISNode && npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Build app
-        run: cd CIRISNode/CIRISNode && npm run build
+        run: npm run build
 
       - name: Start app (adjust this step to fit your deploy process)
-        run: cd CIRISNode/CIRISNode && npm run start
+        run: npm run start
