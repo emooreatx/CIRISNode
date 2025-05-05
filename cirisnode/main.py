@@ -14,6 +14,10 @@ app = FastAPI(
 )
 
 async def verify_token(request: Request, call_next):
+    from starlette.responses import JSONResponse
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Debugging: Log the ENVIRONMENT variable
     print(f"ENVIRONMENT: {os.getenv('ENVIRONMENT', 'dev')}")
 
@@ -27,15 +31,33 @@ async def verify_token(request: Request, call_next):
     
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
+        logger.warning("Missing or invalid Authorization header")
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Missing or invalid Authorization header"}
+        )
     token = auth_header.split("Bearer ")[1]
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         request.state.user = payload
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+        logger.warning(f"Token expired for token: {token}")
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Token expired"}
+        )
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        logger.warning(f"Invalid token received: {token}")
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Invalid token"}
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in token verification: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error during token verification"}
+        )
     return await call_next(request)
 
 app.middleware("http")(verify_token)
