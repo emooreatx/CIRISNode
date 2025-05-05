@@ -3,6 +3,7 @@ name: Deploy to CIRIS Node (Prod)
 on:
   push:
     branches:
+      - main
       - production
 
 jobs:
@@ -12,6 +13,19 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Build Application
+      run: npm run build
+      if: steps.cache.outputs.cache-hit != 'true'
 
     - name: Setup SSH Key
       run: |
