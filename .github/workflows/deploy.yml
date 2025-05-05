@@ -23,10 +23,13 @@ jobs:
         run: ls -R
 
       - name: Install dependencies (ignores missing lock file)
+        working-directory: /home/runner/work/CIRISNode
         run: npm install --no-audit --no-fund
 
       - name: Build app
+        working-directory: /home/runner/work/CIRISNode
         run: npm run build
 
       - name: Start app (adjust this step to fit your deploy process)
+        working-directory: /home/runner/work/CIRISNode
         run: npm run start
