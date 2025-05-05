@@ -30,4 +30,4 @@ jobs:
 
       - name: Deploy application
         run: |
-          echo "Add deployment steps here, such as running a script or copying files."
+          rsync -avz --exclude '.git' --exclude 'node_modules' ./ root@108.61.119.117:/root/cirisnode/
