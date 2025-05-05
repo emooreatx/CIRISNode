@@ -1,42 +1,29 @@
-name: Deploy to CIRIS Node (Prod)
+name: Node.js CI
 
 on:
   push:
-    branches:
-      - main
-      - production
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '16'
-        cache: 'npm'
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
 
-    - name: Install Dependencies
-      run: npm install
+      - name: Install dependencies (ignores missing lock file)
+        run: npm install --no-audit --no-fund
 
-    - name: Build Application
-      run: npm run build
+      - name: Build app
+        run: npm run build
 
-    - name: Setup SSH Key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H node0.ciris.ai >> ~/.ssh/known_hosts
-
-    - name: Deploy Code to node0.ciris.ai
-      run: |
-        rsync -avz --delete ./ root@node0.ciris.ai:/root/cirisnode/
-
-    - name: Restart Service or Build
-      run: |
-        ssh root@node0.ciris.ai "cd /root/cirisnode && ./start.sh"
+      - name: Start app (adjust this step to fit your deploy process)
+        run: npm run start
