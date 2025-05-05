@@ -23,6 +23,7 @@ iniconfig==2.1.0
 jsonschema==4.23.0
 jsonschema-specifications==2025.4.1
 matrix-nio==0.25.2
+matrix_client
 multidict==6.4.3
 packaging==25.0
 pluggy==1.5.0
