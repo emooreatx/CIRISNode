@@ -10,7 +10,9 @@ benchmarks_router = APIRouter()
 ALLOWED_BLESSED_DIDS = set(os.getenv("ALLOWED_BLESSED_DIDS", "").split(","))
 ALLOWED_BENCHMARK_IPS = os.getenv("ALLOWED_BENCHMARK_IPS", "").split(",")
 ALLOWED_BENCHMARK_TOKENS = set(os.getenv("ALLOWED_BENCHMARK_TOKENS", "").split(","))
-JWT_SECRET = os.getenv("JWT_SECRET", "supersecretkey")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET environment variable must be set")
 
 # Matrix logging configuration
 MATRIX_LOGGING_ENABLED = os.getenv("MATRIX_LOGGING_ENABLED", "false").lower() == "true"
@@ -61,9 +63,12 @@ def verifyJwt(token: str, secret: str) -> Dict[str, Any]:
 async def run_benchmark(request: Request):
     token = extractBearerToken(request)
     client_ip = request.client.host
+    import logging
+    logger = logging.getLogger(__name__)
 
     # TEMP BYPASS for test mode
     if os.getenv("ENVIRONMENT") == "test":
+        logger.info("Test mode active, bypassing standard authentication")
         auth_header = request.headers.get("Authorization", "")
         token = auth_header.replace("Bearer ", "").strip()
         TEST_ALLOWED_TOKENS = ["sk_test_abc123"]
@@ -73,17 +78,41 @@ async def run_benchmark(request: Request):
         except jwt.InvalidTokenError:
             token_data = None
         if token in TEST_ALLOWED_TOKENS or (token_data and token_data.get("did") in TEST_ALLOWED_DIDS):
-            return {"message": "Benchmark run initiated", "scenario": (await request.json()).get("scenario")}
+            data = await request.json()
+            logger.info(f"Test mode: Benchmark run initiated for scenario {data.get('scenario')}")
+            return {
+                "message": "Benchmark run initiated",
+                "run_id": "mock_run_12345",
+                "status": "queued",
+                "scenario": data.get("scenario"),
+                "estimated_completion": "5 minutes"
+            }
 
     # 1. Static token bypass (DEV only)
     if token in ALLOWED_BENCHMARK_TOKENS:
         logAttempt(client_ip, "", "static token", "ALLOWED")
-        return {"message": "Benchmark run initiated", "scenario": (await request.json()).get("scenario")}
+        logger.info(f"Static token bypass: Benchmark run initiated from IP {client_ip}")
+        data = await request.json()
+        return {
+            "message": "Benchmark run initiated",
+            "run_id": "mock_run_12345",
+            "status": "queued",
+            "scenario": data.get("scenario"),
+            "estimated_completion": "5 minutes"
+        }
 
     # 2. IP allow-list bypass (DEV only)
     if isIpAllowed(client_ip):
         logAttempt(client_ip, "", "IP allow-list", "ALLOWED")
-        return {"message": "Benchmark run initiated", "scenario": (await request.json()).get("scenario")}
+        logger.info(f"IP allow-list bypass: Benchmark run initiated from IP {client_ip}")
+        data = await request.json()
+        return {
+            "message": "Benchmark run initiated",
+            "run_id": "mock_run_12345",
+            "status": "queued",
+            "scenario": data.get("scenario"),
+            "estimated_completion": "5 minutes"
+        }
 
     # 3. JWT + DID blessing check
     try:
@@ -93,13 +122,24 @@ async def run_benchmark(request: Request):
         # STUB: static DID blessing (to be replaced by Aries VC proof)
         if user_did not in ALLOWED_BLESSED_DIDS:
             logAttempt(client_ip, user_did, "DID check", "DENIED")
+            logger.warning(f"DID check failed for {user_did} from IP {client_ip}")
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: DID not blessed")
 
         logAttempt(client_ip, user_did, "DID check", "ALLOWED")
-        return {"message": "Benchmark run initiated", "scenario": (await request.json()).get("scenario")}
+        logger.info(f"Benchmark run initiated for DID {user_did} from IP {client_ip}")
+        data = await request.json()
+        return {
+            "message": "Benchmark run initiated",
+            "run_id": "mock_run_12345",
+            "status": "queued",
+            "scenario": data.get("scenario"),
+            "estimated_completion": "5 minutes"
+        }
     except HTTPException as e:
         logAttempt(client_ip, "", "JWT validation", "DENIED")
+        logger.error(f"HTTP error during JWT validation: {str(e)}")
         raise e
     except Exception as e:
         logAttempt(client_ip, "", "JWT validation", "DENIED")
+        logger.error(f"Unexpected error during JWT validation: {str(e)}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
