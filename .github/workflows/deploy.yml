@@ -1,4 +1,4 @@
-name: Node.js CI
+name: Python CI/CD
 
 on:
   push:
@@ -14,22 +14,19 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
         with:
-          node-version: 16
+          python-version: '3.9'
 
-      - name: "Debug: List files in the runner environment"
-        run: ls -R
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Install dependencies (ignores missing lock file)
-        working-directory: /home/runner/work/CIRISNode
-        run: npm install --no-audit --no-fund
+      - name: Run tests
+        run: pytest
 
-      - name: Build app
-        working-directory: /home/runner/work/CIRISNode
-        run: npm run build
-
-      - name: Start app (adjust this step to fit your deploy process)
-        working-directory: /home/runner/work/CIRISNode
-        run: npm run start
+      - name: Deploy application
+        run: |
+          echo "Add deployment steps here, such as running a script or copying files."
