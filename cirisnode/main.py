@@ -21,8 +21,9 @@ async def verify_token(request: Request, call_next):
     # Debugging: Log the ENVIRONMENT variable
     print(f"ENVIRONMENT: {os.getenv('ENVIRONMENT', 'dev')}")
 
-    # Skip authentication for health check, token issuance, verification, and authenticate
-    if request.url.path in ["/api/v1/health", "/api/v1/did/issue", "/api/v1/did/verify", "/api/v1/wa/authenticate"]:
+    # Skip authentication for health check, token issuance, verification, authenticate, and documentation endpoints
+    if request.url.path in ["/api/v1/health", "/api/v1/did/issue", "/api/v1/did/verify", "/api/v1/wa/authenticate", "/openapi.json"] or \
+       request.url.path.startswith(("/docs", "/redoc")):
         return await call_next(request)
     
     # Allow bypass for testing environment
