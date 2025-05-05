@@ -28,9 +28,11 @@ jobs:
         run: pytest
         continue-on-error: true
 
-      - name: Add server to known hosts
+      - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 108.61.119.117 >> ~/.ssh/known_hosts
 
       - name: Deploy application
