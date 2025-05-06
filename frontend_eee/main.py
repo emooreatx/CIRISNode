@@ -72,15 +72,16 @@ if page == "Deferral Inbox":
             with col1:
                 if st.button("Ponder", key=f"ponder_{idx}"):
                     metadata = format_metadata(selected_did, "PONDER")
-                    st.write("Action: Pondered", metadata)
+                    st.write("Action: Pondered (handled locally)", metadata)
             with col2:
                 if st.button("Reject", key=f"reject_{idx}"):
                     metadata = format_metadata(selected_did, "REJECT")
-                    st.write("Action: Rejected", metadata)
+                    st.write("Action: Rejected (handled locally)", metadata)
             with col3:
                 if st.button("Defer", key=f"defer_{idx}"):
                     metadata = format_metadata(selected_did, "DEFER")
-                    st.write("Action: Deferred", metadata)
+                    st.write("Action: Deferred (sent to backend)", metadata)
+            st.markdown("*Note: Ponder and Reject are handled locally by the agent. Only Defer is processed by the backend node.*")
 
 elif page == "Thought Queue Viewer":
     st.title("Thought Queue Viewer")

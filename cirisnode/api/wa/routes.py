@@ -177,8 +177,8 @@ async def wise_deferral(request: Request, metadata: Dict[str, Any] = Depends(get
     try:
         data = await request.json()
         deferral_type = data.get("deferral_type")
-        if deferral_type not in ["ponder", "reject", "defer"]:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid deferral type. Must be 'ponder', 'reject', or 'defer'.")
+        if deferral_type != "defer":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only 'defer' is handled by the backend.")
         
         reason = data.get("reason", "No reason provided")
         target_object = data.get("target_object", "N/A")
