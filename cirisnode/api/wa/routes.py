@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Response, status, Request, Depends, HTTPException
-import uuid
+from pydantic import ValidationError
+from cirisnode.schema.wa_models import DeferralRequest, RejectionRequest, CorrectionRequest, WAEntry
+from uuid import uuid4
 import logging
 from datetime import datetime
 from typing import Dict, Any
@@ -8,6 +10,8 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 wa_router = APIRouter(tags=["wa"])
+
+wa_db = {}
 
 async def get_user_metadata(request: Request):
     user = getattr(request.state, 'user', {"sub": "unknown", "did": "did:mock:unknown"})
@@ -71,7 +75,7 @@ async def logout(metadata: Dict[str, Any] = Depends(get_user_metadata)):
 
 @wa_router.post("/ticket")
 async def submit_ticket(response: Response, request: Request, metadata: Dict[str, Any] = Depends(get_user_metadata)):
-    ticket_id = str(uuid.uuid4())
+    ticket_id = str(uuid4())
     # Mocked ticket submission logic
     logger.info(f"Ticket submitted with ID {ticket_id}, DID: {metadata['did']}")
     return {
@@ -157,7 +161,7 @@ async def take_action(request: Request, metadata: Dict[str, Any] = Depends(get_u
         if action_type not in ["listen", "useTool", "speak"]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action type. Must be 'listen', 'useTool', or 'speak'.")
         
-        decision_id = str(uuid.uuid4())
+        decision_id = str(uuid4())
         logger.info(f"TAKE ACTION: {action_type} by DID: {metadata['did']}, Decision ID: {decision_id}")
         return {
             "status": "success",
@@ -173,31 +177,95 @@ async def take_action(request: Request, metadata: Dict[str, Any] = Depends(get_u
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error processing action: {str(e)}")
 
 @wa_router.post("/deferral")
-async def wise_deferral(request: Request, metadata: Dict[str, Any] = Depends(get_user_metadata)):
+async def wise_deferral(request: DeferralRequest, metadata: Dict[str, Any] = Depends(get_user_metadata)):
     try:
-        data = await request.json()
-        deferral_type = data.get("deferral_type")
-        if deferral_type != "defer":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only 'defer' is handled by the backend.")
-        
-        reason = data.get("reason", "No reason provided")
-        target_object = data.get("target_object", "N/A")
-        decision_id = str(uuid.uuid4())
-        logger.info(f"WISE DEFERRAL: {deferral_type} by DID: {metadata['did']}, Reason: {reason}, Decision ID: {decision_id}")
+        deferral_id = uuid4()
+        deferral_entry = WAEntry(
+            id=deferral_id,
+            did=request.did,
+            action="deferral",
+            details=f"Reason: {request.reason if request.reason else 'No reason provided'}",
+            timestamp=datetime.utcnow()
+        )
+        wa_db[str(deferral_id)] = deferral_entry
+        logger.info(f"WISE DEFERRAL: by DID: {metadata['did']}, Reason: {request.reason}, Decision ID: {deferral_id}")
         return {
             "status": "success",
-            "decision_id": decision_id,
-            "action": deferral_type,
+            "decision_id": str(deferral_id),
+            "action": "deferral",
             "handler": "WISE_DEFERRAL",
-            "reason": reason,
-            "target_object": target_object,
-            "message": f"Deferral {deferral_type} processed and logged",
+            "reason": request.reason if request.reason else "No reason provided",
+            "message": f"Deferral processed and logged",
             "did": metadata["did"],
             "timestamp": metadata["timestamp"]
         }
+    except ValidationError as e:
+        logger.error(f"Validation error processing WISE DEFERRAL: {str(e)}, DID: {metadata['did']}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Validation error: {str(e)}")
     except Exception as e:
         logger.error(f"Error processing WISE DEFERRAL: {str(e)}, DID: {metadata['did']}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error processing deferral: {str(e)}")
+
+@wa_router.post("/rejection")
+async def wise_rejection(request: RejectionRequest, metadata: Dict[str, Any] = Depends(get_user_metadata)):
+    try:
+        rejection_id = uuid4()
+        rejection_entry = WAEntry(
+            id=rejection_id,
+            did=request.did,
+            action="rejection",
+            details=f"Justification: {request.justification}",
+            timestamp=datetime.utcnow()
+        )
+        wa_db[str(rejection_id)] = rejection_entry
+        logger.info(f"WISE REJECTION: by DID: {metadata['did']}, Justification: {request.justification}, Decision ID: {rejection_id}")
+        return {
+            "status": "success",
+            "decision_id": str(rejection_id),
+            "action": "rejection",
+            "handler": "WISE_REJECTION",
+            "justification": request.justification,
+            "message": f"Rejection processed and logged",
+            "did": metadata["did"],
+            "timestamp": metadata["timestamp"]
+        }
+    except ValidationError as e:
+        logger.error(f"Validation error processing WISE REJECTION: {str(e)}, DID: {metadata['did']}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Validation error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error processing WISE REJECTION: {str(e)}, DID: {metadata['did']}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error processing rejection: {str(e)}")
+
+@wa_router.post("/correction")
+async def wise_correction(request: CorrectionRequest, metadata: Dict[str, Any] = Depends(get_user_metadata)):
+    try:
+        correction_id = uuid4()
+        correction_entry = WAEntry(
+            id=correction_id,
+            did="unknown",  # Placeholder since CorrectionRequest doesn't have did
+            action="correction",
+            details=f"Original Decision ID: {request.original_decision_id}, Correction: {request.correction}",
+            timestamp=datetime.utcnow()
+        )
+        wa_db[str(correction_id)] = correction_entry
+        logger.info(f"WISE CORRECTION: by DID: {metadata['did']}, Original Decision ID: {request.original_decision_id}, Correction: {request.correction}, Decision ID: {correction_id}")
+        return {
+            "status": "success",
+            "decision_id": str(correction_id),
+            "action": "correction",
+            "handler": "WISE_CORRECTION",
+            "original_decision_id": str(request.original_decision_id),
+            "correction": request.correction,
+            "message": f"Correction processed and logged",
+            "did": metadata["did"],
+            "timestamp": metadata["timestamp"]
+        }
+    except ValidationError as e:
+        logger.error(f"Validation error processing WISE CORRECTION: {str(e)}, DID: {metadata['did']}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Validation error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error processing WISE CORRECTION: {str(e)}, DID: {metadata['did']}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error processing correction: {str(e)}")
 
 @wa_router.post("/memory")
 async def handle_memory(request: Request, metadata: Dict[str, Any] = Depends(get_user_metadata)):
@@ -208,7 +276,7 @@ async def handle_memory(request: Request, metadata: Dict[str, Any] = Depends(get
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid memory action. Must be 'learn', 'remember', or 'forget'.")
         
         content = data.get("content", "N/A")
-        decision_id = str(uuid.uuid4())
+        decision_id = str(uuid4())
         logger.info(f"MEMORY: {memory_action} by DID: {metadata['did']}, Decision ID: {decision_id}")
         return {
             "status": "success",
@@ -233,7 +301,7 @@ async def submit_thought(request: Request, metadata: Dict[str, Any] = Depends(ge
         if dma_type not in ["CommonSense", "Principled", "DomainSpecific"]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid DMA type. Must be 'CommonSense', 'Principled', or 'DomainSpecific'.")
         
-        thought_id = str(uuid.uuid4())
+        thought_id = str(uuid4())
         logger.info(f"THOUGHT submitted by DID: {metadata['did']}, Assigned to DMA: {dma_type}, Thought ID: {thought_id}")
         return {
             "status": "success",
