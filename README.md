@@ -7,7 +7,7 @@
 
 ## 1  Overview
 
-CIRISNode (née “EthicsEngine Enterprise”) is the remote utility that CIRISAgent clients will call for:
+CIRISNode (née "EthicsEngine Enterprise") is the remote utility that CIRISAgent clients will call for:
 
 - **Alignment benchmarking** (Annex J HE-300 suite)  
 - **Secure communications** via a Matrix homeserver integration  
@@ -28,7 +28,7 @@ CIRISNode (née “EthicsEngine Enterprise”) is the remote utility that CIRISA
    Issues and verifies W3C DIDs and verifiable credentials for audit roots and reports.
 
 4. **Audit Anchoring**  
-   Publishes daily SHA-256 roots of logs and benchmark results into a Matrix “transparency” room and mints them as `CIRIS-AuditRoot` credentials.
+   Publishes daily SHA-256 roots of logs and benchmark results into a Matrix "transparency" room and mints them as `CIRIS-AuditRoot` credentials.
 
 ---
 
@@ -41,8 +41,14 @@ CIRISNode (née “EthicsEngine Enterprise”) is the remote utility that CIRISA
 - **POST** /api/v1/benchmarks/run → start HE-300  
 - **GET** /api/v1/benchmarks/status/{run_id}  
 - **GET** /api/v1/benchmarks/results/{run_id} → signed report + VC  
-- **POST** /api/v1/wa/ticket → submit deferral package  
-- **GET** /api/v1/wa/status/{ticket_id}
+- **POST** /api/v1/wa/deferral → submit deferral package
+- **POST** /api/v1/wa/thought → submit thought request
+- **POST** /api/v1/wa/action → execute action (listen, useTool, speak)
+- **POST** /api/v1/wa/memory → manage memory (learn, remember, forget)
+- **POST** /api/v1/wa/reject → reject a task
+- **POST** /wa/defer → create a new task
+- **GET** /wa/active_tasks → get all active tasks
+- **GET** /wa/completed_actions → get all completed actions
 
 *All responses are JSON-Web-Signed; clients verify via the Aries agent.*
 
@@ -61,8 +67,8 @@ CIRISNode (née “EthicsEngine Enterprise”) is the remote utility that CIRISA
 
 ## 5  Naming & Migration Plan
 
-- References to “EthicsEngine Enterprise” will be renamed to **CIRISNode** once Matrix & SSI flows stabilize.  
-- Documentation will use “CIRISNode (née EthicsEngine Enterprise)” until final branding is confirmed.  
+- References to "EthicsEngine Enterprise" will be renamed to **CIRISNode** once Matrix & SSI flows stabilize.  
+- Documentation will use "CIRISNode (née EthicsEngine Enterprise)" until final branding is confirmed.  
 - **TBD**: exact Matrix room IDs, Aries agent configuration parameters, governance charter hooks.
 
 ---
@@ -86,7 +92,7 @@ This README is licensed under Apache 2.0 © 2025 CIRIS AI Project
 
 ### CIRISNode Development Status as of May 8, 2025
 
-This section outlines everything completed during Phase 2 and the beginning of Phase 3 of CIRISNode’s development. I took the project from a conceptual state with no working code or containers and built a fully functional FastAPI backend. The system now includes working support for JWT-based authentication, Matrix chat integration, execution of HE-300 benchmark scenarios, DID issuance and verification endpoints, and Wisdom Authority ticketing workflows. All major API routes have been implemented, tested, and verified. The system is now containerized with Docker, runs end-to-end locally or in CI, and has a fully passing test suite covering its core features. Additionally, a standalone frontend interface for the Ethics Engine Enterprise (EEE) system has been developed as part of Phase 1 of the frontend rollout, and further enhanced in Phase 3 with a Streamlit-based web application for improved accessibility and interaction with the backend.
+This section outlines everything completed during Phase 2 and the beginning of Phase 3 of CIRISNode's development. I took the project from a conceptual state with no working code or containers and built a fully functional FastAPI backend. The system now includes working support for JWT-based authentication, Matrix chat integration, execution of HE-300 benchmark scenarios, DID issuance and verification endpoints, and Wisdom Authority ticketing workflows. All major API routes have been implemented, tested, and verified. The system is now containerized with Docker, runs end-to-end locally or in CI, and has a fully passing test suite covering its core features. Additionally, a standalone frontend interface for the Ethics Engine Enterprise (EEE) system has been developed as part of Phase 1 of the frontend rollout, and further enhanced in Phase 3 with a Streamlit-based web application for improved accessibility and interaction with the backend.
 
 ---
 
@@ -99,7 +105,13 @@ This section outlines everything completed during Phase 2 and the beginning of P
   - `cirisnode/api/benchmarks/routes.py`
   - `cirisnode/api/wa/routes.py`
   - `cirisnode/api/did/routes.py`
+  - `cirisnode/api/graph/routes.py`
 - Added `/api/v1/wa/defer` endpoint for deferral submissions, integrated with database storage for active tasks.
+- Implemented `/api/v1/wa/deferral` endpoint for handling deferral requests with different types (defer, reject, ponder).
+- Added `/api/v1/wa/thought` endpoint for processing thought requests with different DMA types (CommonSense, Principled, DomainSpecific).
+- Implemented `/api/v1/wa/action` endpoint for executing actions (listen, useTool, speak).
+- Added `/api/v1/wa/memory` endpoint for memory management (learn, remember, forget).
+- Implemented `/wa/defer`, `/wa/active_tasks`, and `/wa/completed_actions` endpoints for task management.
 
 ---
 
@@ -254,7 +266,7 @@ export ENVIRONMENT='dev' && export JWT_SECRET='temporary_secret' && uvicorn ciri
 - **`uvicorn cirisnode.main:app --reload --port 8000`**: Starts the FastAPI server with auto-reload enabled on port 8000.
 
 Once the server is running:
-- Access the health check endpoint at `http://localhost:8000/api/v1/health` to confirm the server is operational (should return `{"status": "ok"}`).
+- Access the health check endpoint at `http://localhost:8000/api/v1/health` to confirm the server is operational (should return `{"status": "ok", "message": "Service is healthy", "timestamp": "2025-05-08T14:52:00Z"}`).
 - Explore the API documentation at `http://localhost:8000/docs` (available in `dev` or `test` environments).
 
 #### Step 6: Run the Streamlit Frontend Locally
@@ -274,12 +286,11 @@ export ENVIRONMENT='dev' && streamlit run frontend_eee/main.py
 Ensure your environment is set to `test` by setting `ENVIRONMENT=test` in your `.env` file or by using environment variables in the command. Install test dependencies if not already installed, then run the tests.
 
 ```bash
-pip install pytest pytest-asyncio pytest-env httpx
-pytest tests/ -v
+export JWT_SECRET='temporary_secret' && pytest tests/ -v
 ```
 
 - Tests cover health checks, JWT authentication, benchmark workflows, DID issuance/verification, and more.
-- Ensure `ENVIRONMENT=test` to enable test-specific bypass logic for protected routes.
+- Ensure `JWT_SECRET` is set to enable JWT authentication for protected routes.
 
 #### Step 8: Run Using Docker (Optional)
 
@@ -369,16 +380,18 @@ curl http://localhost:8000/openapi.json > docs/api-spec/openapi.json
   - Confirm the server is running (`ps aux | grep uvicorn` or `docker ps` for containers).
   - Check logs for startup errors (`docker logs <container_id>` if using Docker).
   - Verify the `.env` file exists and contains required variables like `JWT_SECRET`, or use `export JWT_SECRET='temporary_secret'` in the command. Ensure `--env-file .env` is used in `docker run` commands.
-  - Test the health endpoint at `http://localhost:8000/api/v1/health`. A response of `{"status": "ok"}` indicates the server is operational.
+  - Test the health endpoint at `http://localhost:8000/api/v1/health`. A response of `{"status": "ok", "message": "Service is healthy", "timestamp": "2025-05-08T14:52:00Z"}` indicates the server is operational.
   - Access the interactive Swagger UI at `http://localhost:8000/docs` to explore and test endpoints directly from a browser (available in `dev` or `test` environments). Note that some endpoints require authentication headers.
 
-- **Test Failures Due to Environment Configuration**: If tests fail with authentication errors, ensure `ENVIRONMENT=test` is set in your `.env` file or as an environment variable when running `pytest`. This enables bypass logic for protected routes during testing.
+- **Test Failures Due to Environment Configuration**: If tests fail with authentication errors, ensure `JWT_SECRET` is set as an environment variable when running `pytest`. This enables JWT authentication for protected routes during testing.
 
-- **Matrix Logging Errors**: If Matrix logging is enabled (`MATRIX_LOGGING_ENABLED=true`) but credentials or URLs are incorrect, you’ll see errors in logs. Set `MATRIX_LOGGING_ENABLED=false` in `.env` to disable Matrix integration, or provide valid Matrix configuration values.
+- **Matrix Logging Errors**: If Matrix logging is enabled (`MATRIX_LOGGING_ENABLED=true`) but credentials or URLs are incorrect, you'll see errors in logs. Set `MATRIX_LOGGING_ENABLED=false` in `.env` to disable Matrix integration, or provide valid Matrix configuration values.
 
 - **General Dependency Issues**: If `pip install` fails or dependencies conflict, ensure you're using Python 3.10+ and a clean virtual environment. Remove and recreate the virtual environment if needed (`rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`).
 
 - **Streamlit App Not Connecting to Backend**: If the Streamlit app at `http://localhost:8501` fails to connect to the backend, ensure the server is running on `http://localhost:8000`. Check for errors in the Streamlit interface and server logs. Restart both the server and Streamlit app if necessary.
+
+- **SQLAlchemy Errors in Tests**: If you encounter SQLAlchemy errors related to textual SQL expressions, ensure you're using the `text()` function from `sqlalchemy.sql` to wrap all SQL queries. For example, use `db.execute(text("SELECT * FROM active_tasks"))` instead of `db.execute("SELECT * FROM active_tasks")`.
 
 For additional help, check the GitHub repository issues or contact the project maintainers.
 
@@ -582,5 +595,7 @@ Future iterations should integrate a pluggable AI backend or use Ollama-compatib
 ### 🧵 Final Word
 
 CIRISNode is now fully operational in dev/test environments with full API, Matrix, and testing infrastructure, supporting future integration into the CIRISAgent client ecosystem and Hyperledger Aries stack. The addition of the EEE frontend interface as a Streamlit web application marks a significant advancement in Phase 3, providing a user-friendly, modular UI for Wise Authorities to interact with the system, submit deferral requests, and manage ethical benchmarks in real-time with the backend. This sets the stage for full integration and further enhancements in upcoming phases.
+
+All tests are now passing, confirming that the API endpoints are working as expected according to the test specifications. The system has been thoroughly tested and validated, ensuring reliability, security, and compliance with the project requirements.
 
 – Bradley Matera, May 2025
