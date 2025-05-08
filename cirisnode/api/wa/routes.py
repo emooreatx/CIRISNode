@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Response, status, Request, Depends, HTTPException
 from pydantic import ValidationError
-from cirisnode.schema.wa_models import DeferralRequest, RejectionRequest, CorrectionRequest, WAEntry
+from cirisnode.schema.wa_models import DeferralRequest, RejectionRequest, CorrectionRequest, WAEntry, DeferRequest
+from cirisnode.db.active_tasks import store_deferral
 from uuid import uuid4
 import logging
 from datetime import datetime
@@ -315,3 +316,8 @@ async def submit_thought(request: Request, metadata: Dict[str, Any] = Depends(ge
     except Exception as e:
         logger.error(f"Error processing THOUGHT: {str(e)}, DID: {metadata['did']}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error processing thought: {str(e)}")
+
+@wa_router.post("/defer")
+def defer_action(request: DeferRequest):
+    entry_id = store_deferral(request)
+    return {"status": "ok", "entry_id": entry_id}

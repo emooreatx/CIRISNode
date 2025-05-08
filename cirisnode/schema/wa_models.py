@@ -21,3 +21,8 @@ class WAEntry(BaseModel):
     action: str
     details: str
     timestamp: datetime
+
+class DeferRequest(BaseModel):
+    thought_id: str
+    reason: str
+    timestamp: str
