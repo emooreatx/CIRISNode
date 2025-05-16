@@ -1,18 +1,15 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
+import sqlite3
+from typing import Generator
 
-# Database configuration
-DATABASE_URL = "sqlite:///./cirisnode.db"
+DATABASE_PATH = "cirisnode.db"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+# Dependency for database connection
 
-# Dependency for database session
-def get_db():
-    db = SessionLocal()
+def get_db() -> Generator[sqlite3.Connection, None, None]:
+    """Yield a SQLite connection for request handlers."""
+    conn = sqlite3.connect(DATABASE_PATH)
     try:
-        yield db
+        yield conn
+        conn.commit()
     finally:
-        db.close()
+        conn.close()
