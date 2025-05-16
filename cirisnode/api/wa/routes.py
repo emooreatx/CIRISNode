@@ -2,8 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Header, Response, status
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from cirisnode.database import get_db
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import text
+import sqlite3
 import uuid
 from datetime import datetime
 
@@ -15,50 +14,33 @@ class DeferRequest(BaseModel):
     payload: str
 
 @wa_router.post("/defer")
-def defer_task(request: DeferRequest, db: Session = Depends(get_db)):
-    """
-    Create a new task and add it to the active_tasks table.
-    """
-    task_id = db.execute(
-        text("""
-        INSERT INTO active_tasks (task_type, payload, created_at)
-        VALUES (:task_type, :payload, :created_at)
-        RETURNING id
-        """),
-        {
-            "task_type": request.task_type,
-            "payload": request.payload,
-            "created_at": datetime.utcnow().isoformat(),
-        },
-    ).fetchone()[0]
-    db.commit()
-    
+def defer_task(request: DeferRequest, db: sqlite3.Connection = Depends(get_db)):
+    """Create a new task in the active_tasks table."""
+    cursor = db.execute(
+        "INSERT INTO active_tasks (task_type, payload, created_at) VALUES (?, ?, ?)",
+        (request.task_type, request.payload, datetime.utcnow().isoformat()),
+    )
+    task_id = cursor.lastrowid
     return {"status": "success", "task_id": task_id, "message": "Task created successfully"}
 
 @wa_router.get("/active_tasks")
-def get_active_tasks(db: Session = Depends(get_db)):
-    """
-    Get all active tasks.
-    """
-    tasks = db.execute(text("SELECT * FROM active_tasks")).fetchall()
-    # Return a list of dictionaries with hardcoded keys
+def get_active_tasks(db: sqlite3.Connection = Depends(get_db)):
+    """Return all active tasks."""
+    tasks = db.execute("SELECT * FROM active_tasks").fetchall()
     return [
         {
             "id": task[0],
             "task_type": task[1],
             "payload": task[2],
-            "created_at": task[3] if len(task) > 3 else None
+            "created_at": task[3] if len(task) > 3 else None,
         }
         for task in tasks
     ]
 
 @wa_router.get("/completed_actions")
-def get_completed_actions(db: Session = Depends(get_db)):
-    """
-    Get all completed actions.
-    """
-    actions = db.execute(text("SELECT * FROM completed_actions")).fetchall()
-    # Return a list of dictionaries with hardcoded keys
+def get_completed_actions(db: sqlite3.Connection = Depends(get_db)):
+    """Return all completed actions."""
+    actions = db.execute("SELECT * FROM completed_actions").fetchall()
     return [
         {
             "id": action[0],
@@ -66,7 +48,7 @@ def get_completed_actions(db: Session = Depends(get_db)):
             "action_type": action[2],
             "reason": action[3],
             "additional_info": action[4],
-            "created_at": action[5] if len(action) > 5 else None
+            "created_at": action[5] if len(action) > 5 else None,
         }
         for action in actions
     ]
@@ -79,32 +61,23 @@ class RejectRequest(BaseModel):
     additional_info: Optional[str] = None
 
 @wa_router.post("/reject")
-def reject_task(request: RejectRequest, db: Session = Depends(get_db)):
+def reject_task(request: RejectRequest, db: sqlite3.Connection = Depends(get_db)):
     """
     Reject a task and log the rejection in the database.
     """
     # Check if the task exists in the active_tasks table
-    task = db.execute(text("SELECT * FROM active_tasks WHERE id = :id"), {"id": request.task_id}).fetchone()
+    task = db.execute("SELECT * FROM active_tasks WHERE id = ?", (request.task_id,)).fetchone()
     if not task:
         raise HTTPException(status_code=404, detail="Not Found")
 
     # Insert the rejection into the completed_actions table
     db.execute(
-        text("""
-        INSERT INTO completed_actions (task_id, action_type, reason, additional_info)
-        VALUES (:task_id, 'reject', :reason, :additional_info)
-        """),
-        {
-            "task_id": request.task_id,
-            "reason": request.reason,
-            "additional_info": request.additional_info,
-        },
+        "INSERT INTO completed_actions (task_id, action_type, reason, additional_info) VALUES (?, 'reject', ?, ?)",
+        (request.task_id, request.reason, request.additional_info),
     )
-    db.commit()
 
     # Remove the task from the active_tasks table
-    db.execute(text("DELETE FROM active_tasks WHERE id = :id"), {"id": request.task_id})
-    db.commit()
+    db.execute("DELETE FROM active_tasks WHERE id = ?", (request.task_id,))
 
     return {"status": "success", "message": "Task rejected successfully"}
 

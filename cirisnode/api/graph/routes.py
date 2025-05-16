@@ -3,19 +3,12 @@ import uuid
 import logging
 from datetime import datetime
 from typing import Dict, Any
+from cirisnode.utils.metadata import get_user_metadata
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
 graph_router = APIRouter(tags=["graph"])
-
-async def get_user_metadata(request: Request):
-    user = getattr(request.state, 'user', {"sub": "unknown", "did": "did:mock:unknown"})
-    did = request.headers.get("X-DID", user.get("did", "did:mock:unknown"))
-    return {
-        "did": did,
-        "timestamp": datetime.utcnow().isoformat()
-    }
 
 @graph_router.post("/apply")
 async def apply_to_graph(request: Request, metadata: Dict[str, Any] = Depends(get_user_metadata)):

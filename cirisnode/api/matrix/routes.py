@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from cirisnode.schema.matrix_models import MatrixMessageRequest
 from typing import Dict, Any, List
 from datetime import datetime
+from cirisnode.utils.metadata import get_user_metadata
 import logging
 
 # Setup logging
@@ -12,14 +13,6 @@ matrix_router = APIRouter(tags=["matrix"])
 
 # In-memory storage for mock messages
 matrix_messages: List[Dict[str, str]] = []
-
-async def get_user_metadata(request: Request):
-    user = getattr(request.state, 'user', {"sub": "unknown", "did": "did:mock:unknown"})
-    did = request.headers.get("X-DID", user.get("did", "did:mock:unknown"))
-    return {
-        "did": did,
-        "timestamp": datetime.utcnow().isoformat()
-    }
 
 @matrix_router.post("/send")
 async def send_message(request: MatrixMessageRequest, metadata: Dict[str, Any] = Depends(get_user_metadata)):
