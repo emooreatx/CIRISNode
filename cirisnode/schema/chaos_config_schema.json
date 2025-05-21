@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Chaos Level Configuration",
+  "description": "Schema for configuring chaos levels in benchmarks.",
+  "type": "object",
+  "properties": {
+    "level": {
+      "description": "The chaos level, an integer between 0 and 5.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5
+    },
+    "parameters": {
+      "description": "Specific parameters for the chaos level.",
+      "type": "object",
+      "properties": {
+        "network_latency": {
+          "type": "integer",
+          "description": "Simulated network latency in milliseconds."
+        },
+        "error_rate": {
+          "type": "number",
+          "format": "float",
+          "description": "Simulated error rate (0.0 to 1.0)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["level"],
+  "additionalProperties": false
+}

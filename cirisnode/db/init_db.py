@@ -1,25 +1,26 @@
 import sqlite3
-import os
 
-def init_db():
-    db_path = 'cirisnode/db/active_tasks.db'
-    schema_path = 'cirisnode/db/schema.sql'
-    
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    
-    # Connect to the database
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Read and execute the schema
-    with open(schema_path, 'r') as schema_file:
-        schema = schema_file.read()
-        cursor.executescript(schema)
-    
-    conn.commit()
-    conn.close()
-    print(f"Database initialized at {db_path}")
+def initialize_database():
+    """
+    Initialize the database by executing the schema.sql file.
+    """
+    db_path = "cirisnode.db"
+    schema_path = "schema.sql"
+
+    # Connect to the SQLite database
+    connection = sqlite3.connect(db_path)
+    cursor = connection.cursor()
+
+    # Read and execute the schema.sql file
+    with open(schema_path, "r") as schema_file:
+        schema_sql = schema_file.read()
+        cursor.executescript(schema_sql)
+
+    # Commit changes and close the connection
+    connection.commit()
+    connection.close()
+
+    print(f"Database initialized successfully at {db_path}")
 
 if __name__ == "__main__":
-    init_db()
+    initialize_database()

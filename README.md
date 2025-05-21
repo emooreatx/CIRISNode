@@ -88,6 +88,12 @@ This README is licensed under Apache 2.0 © 2025 CIRIS AI Project
 
 ---
 
+## Deployment
+
+**Security Note:** For production deployments, ensure that the application is served over HTTPS only and that HSTS (HTTP Strict Transport Security) is enabled to enhance security. This is typically handled at the deployment level (e.g., via a reverse proxy like Nginx or a load balancer).
+
+---
+
 ## Bradley Matera's Operational Extension Notes
 
 ### CIRISNode Development Status as of May 8, 2025
@@ -204,8 +210,8 @@ This section provides detailed, step-by-step instructions to set up and run CIRI
 #### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/BradleyMatera/CIRISNode
-cd CIRISNode
+git clone cirisai/cirisnode  # As per FSD
+cd cirisnode
 ```
 
 #### Step 2: Set Up a Virtual Environment
@@ -290,22 +296,14 @@ export JWT_SECRET='temporary_secret' && pytest tests/ -v
 ```
 
 - Tests cover health checks, JWT authentication, benchmark workflows, DID issuance/verification, and more.
-- Ensure `JWT_SECRET` is set to enable JWT authentication for protected routes.
+- Ensure `JWT_SECRET` is set to enable JWT authentication for protected routes during testing.
 
 #### Step 8: Run Using Docker (Optional)
 
-For a containerized setup, use Docker to build and run CIRISNode.
-
-1. **Build the Docker Image**
+For a containerized setup, use Docker Compose to build and run CIRISNode.
 
 ```bash
-docker build -t cirisnode:latest .
-```
-
-2. **Run the Container**
-
-```bash
-docker run -d -p 8000:8000 --env-file .env --name cirisnode cirisnode:latest
+docker compose up --build # For local development as per FSD
 ```
 
 - Maps port 8000 on your host to port 8000 in the container.
