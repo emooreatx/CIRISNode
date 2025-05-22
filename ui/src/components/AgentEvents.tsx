@@ -1,127 +1,234 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 
-interface AgentEventResponse {
-  status: string;
-  event_id: number;
-  message: string;
-}
+const EXAMPLE_EVENTS = [
+  {
+    label: "Task Event",
+    event: {
+      type: "task",
+      description: "Agent started a new task.",
+      task_id: "task-123",
+      status: "started"
+    }
+  },
+  {
+    label: "Thought Event",
+    event: {
+      type: "thought",
+      content: "Should I escalate this task?",
+      confidence: 0.8
+    }
+  },
+  {
+    label: "Action Event",
+    event: {
+      type: "action",
+      action: "send_message",
+      target: "user-456",
+      message: "Hello from agent!"
+    }
+  }
+];
 
 const AgentEvents: React.FC = () => {
-  const [agentUid, setAgentUid] = useState<string>('');
-  const [eventJson, setEventJson] = useState<string>('');
-  const [response, setResponse] = useState<AgentEventResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [agentUid, setAgentUid] = useState("agent-001");
+  const [selectedEvent, setSelectedEvent] = useState(EXAMPLE_EVENTS[0].event);
+  const [customJson, setCustomJson] = useState<string>(JSON.stringify(EXAMPLE_EVENTS[0].event, null, 2));
+  const [useCustom, setUseCustom] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePushEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!agentUid || !eventJson) return;
-
+  const fetchEvents = async () => {
     setLoading(true);
     setError(null);
-    setResponse(null);
-
     try {
-      let parsedEventJson;
-      try {
-        parsedEventJson = JSON.parse(eventJson);
-      } catch (parseError) { // Changed variable name to avoid conflict
-        console.error("JSON Parse Error:", parseError);
-        throw new Error('Invalid JSON format for event data. Please ensure it is a valid JSON object.');
-      }
-
-      const body = {
-        agent_uid: agentUid,
-        event_json: parsedEventJson
-      };
-
-      const res = await fetch('/api/v1/agent/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(localStorage.getItem('authToken') && {'Authorization': `Bearer ${localStorage.getItem('authToken')}`})
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ detail: 'Unknown error occurred' }));
-        throw new Error(`HTTP error! status: ${res.status} - ${errorData.detail}`);
-      }
-
-      const data = await res.json();
-      setResponse(data);
-      setAgentUid(''); // Clear fields on success
-      setEventJson('');
+      const res = await axios.get("/api/v1/agent/events");
+      setEvents(res.data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError("Failed to fetch agent events");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      let event;
+      if (useCustom) {
+        try {
+          event = JSON.parse(customJson);
+        } catch {
+          setError("Invalid JSON in custom event");
+          setLoading(false);
+          return;
+        }
+      } else {
+        event = selectedEvent;
+      }
+      await axios.post("/api/v1/agent/events", {
+        agent_uid: agentUid,
+        event
+      });
+      fetchEvents();
+    } catch (err) {
+      setError("Failed to submit agent event");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await axios.delete(`/api/v1/agent/events/${id}`);
+      fetchEvents();
+    } catch (err) {
+      setError("Failed to delete agent event");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
-      <div className="px-4 py-5 sm:px-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900">Agent Events</h3>
-        <p className="mt-1 max-w-2xl text-sm text-gray-500">Push Task/Thought/Action events from agents for observability.</p>
-      </div>
-      <div className="border-t border-gray-200">
-        <form onSubmit={handlePushEvent} className="px-4 py-5 sm:p-6">
-          <div className="grid grid-cols-1 gap-6">
-            <div>
-              <label htmlFor="agentUid" className="block text-sm font-medium text-gray-700">
-                Agent UID
-              </label>
-              <input
-                type="text"
-                id="agentUid"
-                value={agentUid}
-                onChange={(e) => setAgentUid(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                placeholder="Enter unique identifier for the agent"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="eventJson" className="block text-sm font-medium text-gray-700">
-                Event JSON
-              </label>
-              <textarea
-                id="eventJson"
-                value={eventJson}
-                onChange={(e) => setEventJson(e.target.value)}
-                rows={5}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                placeholder='Enter event data in JSON format, e.g., {"type": "Task", "data": {"id": "task_123", "description": "Sample task"}}'
-                required
-              />
-            </div>
-          </div>
-          <div className="mt-6">
-            <button
-              type="submit"
-              disabled={loading || !agentUid || !eventJson}
-              className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
-                loading || !agentUid || !eventJson ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-              }`}
+    <div style={{ margin: "20px auto", maxWidth: 900 }}>
+      <h2>Agent Events</h2>
+      <form onSubmit={handleSubmit} style={{ marginBottom: 24, padding: 12, border: "1px solid #ddd", borderRadius: 6 }}>
+        <div style={{ marginBottom: 8 }}>
+          <label>
+            Agent UID:
+            <input
+              type="text"
+              value={agentUid}
+              onChange={e => setAgentUid(e.target.value)}
+              style={{ marginLeft: 8, padding: 4, borderRadius: 4, border: "1px solid #ccc" }}
+            />
+          </label>
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <label>
+            Example Event:
+            <select
+              value={useCustom ? "custom" : EXAMPLE_EVENTS.findIndex(ev => ev.event === selectedEvent)}
+              onChange={e => {
+                if (e.target.value === "custom") {
+                  setUseCustom(true);
+                } else {
+                  setUseCustom(false);
+                  const idx = parseInt(e.target.value);
+                  setSelectedEvent(EXAMPLE_EVENTS[idx].event);
+                  setCustomJson(JSON.stringify(EXAMPLE_EVENTS[idx].event, null, 2));
+                }
+              }}
+              style={{ marginLeft: 8, padding: 4, borderRadius: 4, border: "1px solid #ccc" }}
             >
-              {loading ? 'Pushing...' : 'Push Event'}
-            </button>
-          </div>
-          {error && (
-            <div className="mt-4 text-red-500 text-sm">
-              Error: {error}
-            </div>
+              {EXAMPLE_EVENTS.map((ev, idx) => (
+                <option key={ev.label} value={idx}>{ev.label}</option>
+              ))}
+              <option value="custom">Custom JSON</option>
+            </select>
+          </label>
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <strong>Event JSON:</strong>
+          {useCustom ? (
+            <textarea
+              value={customJson}
+              onChange={e => setCustomJson(e.target.value)}
+              rows={8}
+              style={{ width: "100%", fontFamily: "monospace", fontSize: 14, background: "#f4f4f4", padding: 8, borderRadius: 4, marginTop: 4 }}
+            />
+          ) : (
+            <pre style={{ background: "#f4f4f4", padding: 8, borderRadius: 4, marginTop: 4 }}>
+              {JSON.stringify(selectedEvent, null, 2)}
+            </pre>
           )}
-          {response && (
-            <div className="mt-4 text-green-500 text-sm">
-              Event pushed successfully. Event ID: {response.event_id}
-            </div>
-          )}
-        </form>
-      </div>
+        </div>
+        <button
+          type="submit"
+          style={{
+            background: "#4F46E5",
+            color: "#fff",
+            padding: "6px 16px",
+            border: "none",
+            borderRadius: 4,
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
+        >
+          Submit Event
+        </button>
+      </form>
+      <button
+        onClick={fetchEvents}
+        style={{
+          marginBottom: "16px",
+          padding: "6px 16px",
+          background: "#4F46E5",
+          color: "#fff",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+          fontWeight: "bold"
+        }}
+      >
+        Refresh Events
+      </button>
+      {loading && <p>Loading agent events...</p>}
+      {error && <div style={{ color: "red" }}>{error}</div>}
+      {!loading && events.length === 0 && <p>No agent events found.</p>}
+      {!loading && events.length > 0 && (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Timestamp</th>
+              <th>Agent UID</th>
+              <th>Event</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map(ev => (
+              <tr key={ev.id}>
+                <td>{ev.id}</td>
+                <td>{ev.node_ts}</td>
+                <td>{ev.agent_uid}</td>
+                <td>
+                  <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.9em", maxWidth: 400, overflow: "auto" }}>
+                    {JSON.stringify(ev.event, null, 2)}
+                  </pre>
+                </td>
+                <td>
+                  <button
+                    onClick={() => handleDelete(ev.id)}
+                    style={{
+                      background: "#c92a2a",
+                      color: "#fff",
+                      padding: "4px 10px",
+                      border: "none",
+                      borderRadius: 4,
+                      fontWeight: "bold",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };

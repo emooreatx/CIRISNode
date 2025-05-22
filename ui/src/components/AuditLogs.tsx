@@ -6,6 +6,7 @@ const AuditLogs: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -27,21 +28,30 @@ const AuditLogs: React.FC = () => {
   return (
     <div style={{ margin: "20px auto", maxWidth: 900 }}>
       <h2>Audit Logs</h2>
-      <button
-        onClick={fetchLogs}
-        style={{
-          marginBottom: "16px",
-          padding: "6px 16px",
-          background: "#4F46E5",
-          color: "#fff",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-          fontWeight: "bold"
-        }}
-      >
-        Refresh Logs
-      </button>
+      <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+        <button
+          onClick={fetchLogs}
+          style={{
+            padding: "6px 16px",
+            background: "#4F46E5",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontWeight: "bold"
+          }}
+        >
+          Refresh Logs
+        </button>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={e => setShowArchived(e.target.checked)}
+          />
+          Show Archived
+        </label>
+      </div>
       {loading && <p>Loading audit logs...</p>}
       {error && <div style={{ color: "red" }}>{error}</div>}
       {!loading && logs.length === 0 && <p>No audit logs found.</p>}
@@ -58,8 +68,10 @@ const AuditLogs: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {logs.map((log) => (
-              <tr key={log.id}>
+            {logs
+              .filter(log => showArchived || !log.archived)
+              .map((log, idx) => (
+              <tr key={log.id ?? `${log.timestamp}-${log.event_type}-${idx}`}>
                 <td>{log.id}</td>
                 <td>{log.timestamp}</td>
                 <td>{log.actor}</td>
@@ -97,6 +109,56 @@ const AuditLogs: React.FC = () => {
                         return <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>{log.details}</pre>;
                       }
                     })()}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm("Delete this audit log?")) {
+                          try {
+                            await axios.delete(`/api/v1/audit/logs/${log.id}`);
+                            setLogs((prev) => prev.filter((l) => l.id !== log.id));
+                          } catch {
+                            alert("Failed to delete audit log.");
+                          }
+                        }
+                      }}
+                      style={{
+                        background: "#c92a2a",
+                        color: "#fff",
+                        padding: "4px 10px",
+                        border: "none",
+                        borderRadius: 4,
+                        fontWeight: "bold",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await axios.patch(`/api/v1/audit/logs/${log.id}/archive?archived=${log.archived ? "false" : "true"}`);
+                          setLogs((prev) =>
+                            prev.map((l) =>
+                              l.id === log.id ? { ...l, archived: !log.archived } : l
+                            )
+                          );
+                        } catch {
+                          alert("Failed to update archive status.");
+                        }
+                      }}
+                      style={{
+                        background: log.archived ? "#aaa" : "#4F46E5",
+                        color: "#fff",
+                        padding: "4px 10px",
+                        border: "none",
+                        borderRadius: 4,
+                        fontWeight: "bold",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {log.archived ? "Unarchive" : "Archive"}
+                    </button>
                   </div>
                 </td>
               </tr>

@@ -112,7 +112,7 @@ const BenchmarkResults: React.FC = () => {
               />
             </div>
           </div>
-          <div className="mt-6">
+          <div className="mt-6 flex gap-4">
             <button
               type="submit"
               disabled={loading || !jobId}
@@ -121,6 +121,43 @@ const BenchmarkResults: React.FC = () => {
               }`}
             >
               {loading ? 'Fetching...' : 'Get Results'}
+            </button>
+            <button
+              type="button"
+              disabled={loading || !jobId}
+              onClick={async () => {
+                if (window.confirm("Delete this benchmark job and its results?")) {
+                  try {
+                    await fetch(`/api/v1/benchmarks/jobs/${jobId}`, { method: "DELETE" });
+                    setResult(null);
+                    setJobId("");
+                  } catch {
+                    alert("Failed to delete job.");
+                  }
+                }
+              }}
+              className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
+                loading || !jobId ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+              }`}
+            >
+              Delete Job
+            </button>
+            <button
+              type="button"
+              disabled={loading || !jobId}
+              onClick={async () => {
+                try {
+                  await fetch(`/api/v1/benchmarks/jobs/${jobId}/archive?archived=true`, { method: "PATCH" });
+                  alert("Job archived. (Reload to see effect.)");
+                } catch {
+                  alert("Failed to archive job.");
+                }
+              }}
+              className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
+                loading || !jobId ? 'bg-gray-400 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500'
+              }`}
+            >
+              Archive Job
             </button>
           </div>
           {error && (

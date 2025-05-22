@@ -2,22 +2,24 @@
 import React, { useState, useEffect } from 'react';
 
 interface WBDTaskData {
-  id: number;
+  id: string;
   agent_task_id: string;
   payload: string;
   status: string;
   created_at: string;
   decision?: string;
   comment?: string;
+  archived?: boolean;
 }
 
 const WBDTasks: React.FC = () => {
   const [tasks, setTasks] = useState<WBDTaskData[]>([]);
   const [stateFilter, setStateFilter] = useState<string>('');
   const [sinceFilter, setSinceFilter] = useState<string>('');
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [resolveTaskId, setResolveTaskId] = useState<number | null>(null);
+  const [resolveTaskId, setResolveTaskId] = useState<string | null>(null);
   const [resolveDecision, setResolveDecision] = useState<string>('approve');
   const [resolveComment, setResolveComment] = useState<string>('');
 
@@ -76,7 +78,37 @@ const WBDTasks: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
+  const handleDelete = async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await fetch(`/api/v1/wbd/tasks/${id}`, { method: "DELETE" });
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    } catch {
+      setError("Failed to delete WBD task");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleArchive = async (id: string, archived: boolean) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await fetch(`/api/v1/wbd/tasks/${id}/archive?archived=${archived ? "true" : "false"}`, { method: "PATCH" });
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, archived } : t
+        )
+      );
+    } catch {
+      setError("Failed to update archive status");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading && tasks.length === 0) { // Show initial loading only
     return <div className="text-center py-4">Loading WBD tasks...</div>;
   }
@@ -93,7 +125,7 @@ const WBDTasks: React.FC = () => {
       </div>
       <div className="border-t border-gray-200">
         <div className="px-4 py-5 sm:p-6">
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
               <label htmlFor="stateFilter" className="block text-sm font-medium text-gray-700">
                 Filter by State
@@ -122,6 +154,14 @@ const WBDTasks: React.FC = () => {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
               />
             </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={e => setShowArchived(e.target.checked)}
+              />
+              Show Archived
+            </label>
             <button onClick={fetchTasks} disabled={loading} className="py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
               {loading ? 'Refreshing...' : 'Refresh Tasks'}
             </button>
@@ -168,7 +208,9 @@ const WBDTasks: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {tasks.map((task) => (
+                  {tasks
+                    .filter(task => showArchived || !task.archived)
+                    .map((task) => (
                     <tr key={task.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{task.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{task.agent_task_id}</td>
@@ -183,10 +225,26 @@ const WBDTasks: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(task.created_at).toLocaleString()}</td>
                       <td className="px-6 py-4 text-sm text-gray-500 truncate max-w-xs" title={task.payload}>{task.payload}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
                         {task.status === 'open' && (
                           <button onClick={() => setResolveTaskId(task.id)} className="text-indigo-600 hover:text-indigo-900">Resolve</button>
                         )}
+                        <button
+                          onClick={() => {
+                            if (window.confirm("Delete this WBD task?")) {
+                              handleDelete(task.id);
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => handleArchive(task.id, !task.archived)}
+                          className={`text-xs px-2 py-1 rounded ${task.archived ? "bg-gray-400 text-white" : "bg-yellow-500 text-white"}`}
+                        >
+                          {task.archived ? "Unarchive" : "Archive"}
+                        </button>
                       </td>
                     </tr>
                   ))}

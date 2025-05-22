@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     finished_at TIMESTAMP,
     results_url TEXT,
-    results_json TEXT -- JSON string of results
+    results_json TEXT, -- JSON string of results
+    archived INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS wbd_tasks (
@@ -15,14 +16,16 @@ CREATE TABLE IF NOT EXISTS wbd_tasks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     resolved_at TIMESTAMP,
     decision TEXT,
-    comment TEXT
+    comment TEXT,
+    archived INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS agent_events (
     id TEXT PRIMARY KEY,
     node_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     agent_uid TEXT,
-    event_json TEXT
+    event_json TEXT,
+    archived INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -31,5 +34,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     actor VARCHAR(128),
     event_type VARCHAR(64) NOT NULL,
     payload_sha256 VARCHAR(128),
-    details JSONB
+    details JSONB,
+    archived INTEGER DEFAULT 0
 );
