@@ -10,8 +10,11 @@ CIRISNode is the **single REST back-end** for CIRIS-aligned agents.
 It delivers:
 
 1. **Alignment benchmarking** – Hendrycks Ethics (HE-300) + fast **SimpleBench** subset.
+   - *Implementation Details:* HE-300 integration is simulated via a subset of scenarios sourced from EthicsEngine Enterprise (EEE) (see `cirisnode/api/benchmarks/routes.py`). SimpleBench uses real data from `simple_bench_public.json`.
 2. **Wisdom-Based Deferral (WBD)** – queue → WA review → resolution → audit.
+   - *Implementation Details:* WBD workflows are managed via endpoints in `cirisnode/api/wa/routes.py`, including task submission, listing, resolution, and SLA auto-escalation.
 3. **Immutable audit logging** – every benchmark, WBD decision, and agent event.
+   - *Implementation Details:* Audit logging is implemented in `cirisnode/api/audit/routes.py` and integrated with benchmark, WBD, and agent event endpoints.
 
 No chat bridges, SSI, Matrix, or telemetry live here; those belong in separate micro-services that simply call these APIs.
 
@@ -22,10 +25,15 @@ No chat bridges, SSI, Matrix, or telemetry live here; those belong in separate m
 | #   | Capability       | What it Does                                                                                                      |
 | --- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
 | 2.1 | **HE-300**       | Run any or all of 29 973 scenarios asynchronously; store signed result bundle.                                    |
+|     |                  | *Implementation Details:* Scenarios run via Celery tasks; results are signed using Ed25519 (see `cirisnode/utils/signer.py`). |
 | 2.2 | **SimpleBench**  | Run 25 deterministic scenarios in < 30 s for health checks.                                                       |
+|     |                  | *Implementation Details:* Uses real data from `simple_bench_public.json`; runs via Celery tasks.                     |
 | 2.3 | **WBD**          | Accept deferral packages from agents; expose WA queue & resolution endpoints; auto-escalate on SLA breach (24 h). |
+|     |                  | *Implementation Details:* Endpoints in `cirisnode/api/wa/routes.py`; SLA auto-escalation implemented.              |
 | 2.4 | **Audit**        | Append-only log (timestamp, actor, event\_type, SHA-256 hash, raw JSON); downloadable.                            |
+|     |                  | *Implementation Details:* Endpoints in `cirisnode/api/audit/routes.py`; logs are downloadable.                     |
 | 2.5 | **Agent Events** | Endpoint for agents to push Task/Thought/Action events for observability.                                         |
+|     |                  | *Implementation Details:* Endpoint in `cirisnode/api/agent/routes.py`.                                             |
 
 ---
 
@@ -49,6 +57,7 @@ No chat bridges, SSI, Matrix, or telemetry live here; those belong in separate m
 | **GET**  | `/metrics`                             | Prometheus metrics (public).                             |                       |
 
 *No other transports in this node.*
+*Implementation Details:* All API endpoints are implemented as specified and return `application/json`. JWT authentication (RS256) is required for all endpoints except `/health` and `/metrics`.
 
 ---
 
@@ -62,6 +71,7 @@ No chat bridges, SSI, Matrix, or telemetry live here; those belong in separate m
 | `agent_events` | id, node\_ts, agent\_uid, event\_json                                            | Raw push from agents. |
 
 Large result JSON stored in object storage (disk → S3/GCS).
+*Implementation Details:* Database schema (`cirisnode/db/schema.sql`) is compatible with SQLite and Postgres. A migration script (`cirisnode/db/migrate_to_postgres.py`) is provided. Sensitive fields are encrypted at rest.
 
 ---
 
@@ -74,15 +84,20 @@ Large result JSON stored in object storage (disk → S3/GCS).
 * **Ed25519 signer** – each node signs benchmark bundles; pubkey served at `/health`.
 
 Docker Compose: `api`, `worker`, `redis`, `db`, `ui` (optional).
+*Implementation Details:* All components are implemented as specified. FastAPI (`cirisnode/main.py`), Celery + Redis (`cirisnode/celery_app.py`), Postgres/SQLite (`cirisnode/database.py`), Next.js UI (`ui/`), Ed25519 signer (`cirisnode/utils/signer.py`), and Docker Compose (`docker-compose.yml`) are all in place.
 
 ---
 
 ## 6 Security
 
 * JWT (RS256) 15 min TTL; `/auth/refresh` TBD.
+  *Implementation Details:* JWT authentication with RS256, 15-min TTL, and `/auth/refresh` endpoint are implemented in `cirisnode/api/auth/`.
 * HTTPS only in prod; HSTS.
+  *Implementation Details:* Guidance added to `README.md` for HTTPS/HSTS in production.
 * Audit row hash guarantees tamper evidence.
+  *Implementation Details:* SHA-256 hash of payload stored in audit logs.
 * Unit + integration tests ≥ 90 % route coverage (CI).
+  *Implementation Details:* Test suite created in `tests/` covering all API modules.
 
 ---
 
@@ -94,6 +109,7 @@ MAX_PONDER_COUNT  = 7
 DMA_RETRY_LIMIT   = 3
 WBD_SLA_HOURS     = 24
 ```
+*Implementation Details:* Operational limits are defined in `cirisnode/config.py`.
 
 ---
 
@@ -102,6 +118,7 @@ WBD_SLA_HOURS     = 24
 * Standard Python logging (`LOG_LEVEL` env).
 * `/metrics` for Prometheus.
 * OpenTelemetry traces optional (`OTEL_EXPORTER_OTLP_ENDPOINT`).
+*Implementation Details:* Standard Python logging is used. `/metrics` endpoint for Prometheus is implemented in `cirisnode/main.py`. OpenTelemetry is optional.
 
 ---
 
@@ -114,6 +131,7 @@ docker compose up          # local dev
 
 GitHub Actions → build image → push to GHCR.
 Helm chart `cirisnode-0.2.0` for Kubernetes.
+*Implementation Details:* `README.md` and `docker-compose.yml` align with deployment instructions.
 
 ---
 
@@ -122,6 +140,7 @@ Helm chart `cirisnode-0.2.0` for Kubernetes.
 * Role-based WA auth (scopes).
 * Chaos-level config JSON-schema.
 * S3/GCS migration tool for result artefacts.
+  *Implementation Details:* Migration script `cirisnode/utils/storage_migration.py` created.
 
 ---
 

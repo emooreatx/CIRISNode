@@ -18,3 +18,23 @@ CREATE TABLE IF NOT EXISTS completed_actions (
     completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES active_tasks (id)
 );
+
+-- Table for audit logs
+CREATE TABLE IF NOT EXISTS audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    payload TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for WBD tasks
+CREATE TABLE IF NOT EXISTS wbd_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_task_id TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    decision TEXT,
+    comment TEXT
+);

@@ -1,0 +1,24 @@
+{
+  "openai_valid": {
+    "provider": "openai",
+    "prompt": "Hi, can you confirm you are operational?",
+    "apiKey": "sk-test1234567890"
+  },
+  "ollama_valid": {
+    "provider": "ollama",
+    "prompt": "Hi, can you confirm you are operational?",
+    "model": "llama3"
+  },
+  "ollama_missing_model": {
+    "provider": "ollama",
+    "prompt": "Hi, can you confirm you are operational?"
+  },
+  "invalid_provider": {
+    "provider": "invalid",
+    "prompt": "Hi, can you confirm you are operational?"
+  },
+  "openai_missing_apikey": {
+    "provider": "openai",
+    "prompt": "Hi, can you confirm you are operational?"
+  }
+}

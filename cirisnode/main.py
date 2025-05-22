@@ -1,19 +1,37 @@
 from fastapi import FastAPI
-from cirisnode.api.wa.routes import wa_router
-from cirisnode.api.graph.routes import graph_router
-from cirisnode.api.did.routes import did_router
-from cirisnode.api.benchmarks.routes import benchmarks_router
+from fastapi.middleware.cors import CORSMiddleware
+from cirisnode.api.audit.routes import audit_router
+from cirisnode.api.benchmarks.routes import simplebench_router
+from cirisnode.api.ollama.routes import ollama_router
+from cirisnode.api.wbd.routes import wbd_router
+from cirisnode.api.llm.routes import llm_router
+from cirisnode.api.health.routes import router as health_router
+from cirisnode.api.agent.routes import agent_router
 
 app = FastAPI()
 
-# Include routers
-app.include_router(wa_router, prefix="/api/v1/wa")
-app.include_router(wa_router, prefix="/wa")  # For test_wa.py
-app.include_router(graph_router, prefix="/api/v1/graph")
-app.include_router(did_router, prefix="/api/v1/did")
-app.include_router(benchmarks_router, prefix="/api/v1/benchmarks")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Health check endpoint
-@app.get("/api/v1/health")
-async def health_check():
-    return {"status": "ok", "timestamp": "2025-05-08T14:52:00Z", "message": "Service is healthy"}
+app.include_router(audit_router)
+app.include_router(simplebench_router)
+app.include_router(ollama_router)
+app.include_router(wbd_router)
+app.include_router(llm_router)
+app.include_router(health_router)
+app.include_router(agent_router)
+
+@app.get("/metrics")
+def metrics():
+    # Placeholder Prometheus metrics
+    return (
+        "cirisnode_up 1\n"
+        "cirisnode_jobs_total 0\n"
+        "cirisnode_wbd_tasks_total 0\n"
+        "cirisnode_audit_logs_total 0\n"
+    )

@@ -1,22 +1,57 @@
-version: "3.8"
 services:
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8002:8002"
-    env_file:
-      - .env
-    volumes:
-      - ./results:/app/results
+      - "8000:8000"
     depends_on:
-      - matrix
-  matrix:
-    image: matrixdotorg/synapse:latest
+      - db
+      - redis
     environment:
-      - SYNAPSE_SERVER_NAME=matrix.local
+      - DATABASE_URL=sqlite:///app/cirisnode/db/cirisnode.db  # Match container path
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A cirisnode.celery_app worker -l info
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=sqlite:///app/cirisnode/db/cirisnode.db  # Match container path
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=cirisnode
     ports:
-      - "8008:8008"
-  aries:
-    image: bcgovimages/aries-cloudagent:py36-1.16-1_0.7.2
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:6-alpine
     ports:
-      - "8020:8020"
+      - "6379:6379"
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile  # Assuming a Dockerfile exists in ./ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
