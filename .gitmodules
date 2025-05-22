@@ -1,0 +1,3 @@
+[submodule "hendrycks_ethics"]
+	path = hendrycks_ethics
+	url = https://github.com/hendrycks/ethics.git
