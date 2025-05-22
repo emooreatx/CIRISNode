@@ -1,6 +1,6 @@
 # **CIRISNode – Functional Specification (REST-Only, Minimal Edition)**
 
-*Version 1.2 · 2025-05-20*
+*Version 1.3 · 2025-05-21*
 
 ---
 
@@ -9,8 +9,8 @@
 CIRISNode is the **single REST back-end** for CIRIS-aligned agents.
 It delivers:
 
-1. **Alignment benchmarking** – Hendrycks Ethics (HE-300) + fast **SimpleBench** subset.
-   - *Implementation Details:* HE-300 integration is simulated via a subset of scenarios sourced from EthicsEngine Enterprise (EEE) (see `cirisnode/api/benchmarks/routes.py`). SimpleBench uses real data from `simple_bench_public.json`.
+1. **Alignment benchmarking** – Hendrycks Ethics (HE-300) and **SimpleBench** via REST.
+   - *Implementation Details:* `POST /he300` returns **six** benchmark IDs. Each ID yields **50** prompts when queried via `/bench/he300/prompts?benchmark_id=…`. Agents submit answers to `/bench/he300/answers` and fetch signed results from `/bench/he300/results/{benchmark_id}`. `POST /simplebench` returns all **10** prompts in one call with a similar upload flow.
 2. **Wisdom-Based Deferral (WBD)** – queue → WA review → resolution → audit.
    - *Implementation Details:* WBD workflows are managed via endpoints in `cirisnode/api/wa/routes.py`, including task submission, listing, resolution, and SLA auto-escalation.
 3. **Immutable audit logging** – every benchmark, WBD decision, and agent event.
@@ -24,10 +24,10 @@ No chat bridges, SSI, Matrix, or telemetry live here; those belong in separate m
 
 | #   | Capability       | What it Does                                                                                                      |
 | --- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 2.1 | **HE-300**       | Run any or all of 29 973 scenarios asynchronously; store signed result bundle.                                    |
-|     |                  | *Implementation Details:* Scenarios run via Celery tasks; results are signed using Ed25519 (see `cirisnode/utils/signer.py`). |
-| 2.2 | **SimpleBench**  | Run 25 deterministic scenarios in < 30 s for health checks.                                                       |
-|     |                  | *Implementation Details:* Uses real data from `simple_bench_public.json`; runs via Celery tasks.                     |
+| 2.1 | **HE-300**       | `POST /he300` → six IDs → 50 prompts each via `/bench/he300/prompts`. Answers uploaded and results fetched per ID. |
+|     |                  | *Implementation Details:* Prompts sampled from Hendrycks Ethics. Results are signed using Ed25519. |
+| 2.2 | **SimpleBench**  | `POST /simplebench` returns 10 prompts in one call; upload answers to `/bench/simplebench/answers`. |
+|     |                  | *Implementation Details:* Uses `simple_bench_public.json`; minimal turnaround for health checks. |
 | 2.3 | **WBD**          | Accept deferral packages from agents; expose WA queue & resolution endpoints; auto-escalate on SLA breach (24 h). |
 |     |                  | *Implementation Details:* Endpoints in `cirisnode/api/wa/routes.py`; SLA auto-escalation implemented.              |
 | 2.4 | **Audit**        | Append-only log (timestamp, actor, event\_type, SHA-256 hash, raw JSON); downloadable.                            |
@@ -42,19 +42,21 @@ No chat bridges, SSI, Matrix, or telemetry live here; those belong in separate m
 > All routes return `application/json`.
 > Bearer JWT (RS256) required except `/health` and `/metrics`.
 
-| Method   | Path                                   | Purpose                                                  |                       |
-| -------- | -------------------------------------- | -------------------------------------------------------- | --------------------- |
-| **GET**  | `/api/v1/health`                       | `{"status":"ok","version":"1.2.0","pubkey":"…"}`         |                       |
-| **POST** | `/api/v1/benchmarks/run`               | Body `{scenario_id?, chaos_level?}` → returns `job_id`.  |                       |
-| **GET**  | `/api/v1/benchmarks/results/{job_id}`  | Signed HE-300 results bundle.                            |                       |
-| **POST** | `/api/v1/simplebench/run`              | Start SimpleBench; returns `job_id`.                     |                       |
-| **GET**  | `/api/v1/simplebench/results/{job_id}` | SimpleBench results.                                     |                       |
-| **POST** | `/api/v1/wbd/submit`                   | Agents submit deferral `{agent_task_id,payload}`.        |                       |
-| **GET**  | `/api/v1/wbd/tasks`                    | List open WBD tasks. Filters: `state`, `since`.          |                       |
-| **POST** | `/api/v1/wbd/tasks/{id}/resolve`       | Body \`{decision:"approve"                               | "reject",comment?}\`. |
-| **GET**  | `/api/v1/audit/logs`                   | Stream ND-JSON audit entries (query `type`,`from`,`to`). |                       |
-| **POST** | `/api/v1/agent/events`                 | Agents push Task / Thought / Action events.              |                       |
-| **GET**  | `/metrics`                             | Prometheus metrics (public).                             |                       |
+| Method   | Path                                        | Purpose                                                   |               |
+| -------- | ------------------------------------------- | --------------------------------------------------------- | ------------- |
+| **GET**  | `/health`                                  | `{"status":"ok","version":"1.3.0","pubkey":"…"}`             |               |
+| **POST** | `/he300`                                   | Start HE-300 and receive six `benchmark_id` values.       |               |
+| **GET**  | `/bench/he300/prompts`                     | Query `benchmark_id`,`model_id`,`agent_id` → 50 prompts.  |               |
+| **PUT**  | `/bench/he300/answers`                     | Upload answers `{benchmark_id,model_id,agent_id,answers}`.|               |
+| **GET**  | `/bench/he300/results/{benchmark_id}`      | Fetch signed results for that ID.                         |               |
+| **POST** | `/simplebench`                             | Return all 10 prompts and scores in one call.             |               |
+| **GET**  | `/bench/simplebench/prompts`               | (Optional) fetch the 10 prompts separately.               |               |
+| **PUT**  | `/bench/simplebench/answers`               | Upload answers for SimpleBench.                           |               |
+| **GET**  | `/bench/simplebench/results/{benchmark_id}`| Retrieve stored SimpleBench results.                      |               |
+| **POST** | `/wa/{service}`                            | Invoke a Wise Authority service.                          |               |
+| **POST** | `/chaos`                                   | Execute chaos scenarios for an agent.                     |               |
+| **POST** | `/events`                                  | Agents push event logs.                                   |               |
+| **GET**  | `/metrics`                                 | Prometheus metrics (public).                              |               |
 
 *No other transports in this node.*
 *Implementation Details:* All API endpoints are implemented as specified and return `application/json`. JWT authentication (RS256) is required for all endpoints except `/health` and `/metrics`.
@@ -144,4 +146,4 @@ Helm chart `cirisnode-0.2.0` for Kubernetes.
 
 ---
 
-**CIRISNode v1.2** – the simplest REST-only nucleus for alignment benchmarking, WBD governance, and audit.
+**CIRISNode v1.3** – the simplest REST-only nucleus for alignment benchmarking, WBD governance, and audit.
