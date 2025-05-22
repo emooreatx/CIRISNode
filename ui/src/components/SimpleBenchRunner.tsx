@@ -14,9 +14,12 @@ interface SimpleBenchData {
 
 // Expected response structure from the simplebench/run endpoint
 interface SimpleBenchRunResponse {
-  job_id: string;
-  message: string;
-  results_url?: string; // Optional, based on backend implementation
+  scenario_id: string;
+  model_used: string;
+  prompt: string;
+  response: string;
+  expected_answer: string;
+  passed: boolean;
 }
 
 const SimpleBenchRunner: React.FC = () => {
@@ -26,15 +29,18 @@ const SimpleBenchRunner: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [selectedOllamaModel, setSelectedOllamaModel] = useState('');
+  const [jobId, setJobId] = useState<string>("");
   
   // Define a more specific type for results
   interface BenchResult {
-    scenario_id: number;
+    scenario_id: string;
     prompt: string;
     llm_response?: string;
+    response?: string;
     expected_answer: string;
     model_used?: string;
     error?: string;
+    passed?: boolean;
   }
   const [results, setResults] = useState<BenchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,11 +83,11 @@ const SimpleBenchRunner: React.FC = () => {
         setLoadingOllamaModels(true);
         setError(null);
         try {
-          const res = await axios.get<{ models: { name: string }[] }>("http://127.0.0.1:8001/api/v1/ollama-models");
+          const res = await axios.get<{ models: { name: string }[] }>("http://127.0.0.1:11434/api/tags");
           if (res.data.models && res.data.models.length > 0) {
             console.log("Ollama models API response:", res.data.models);
-            const modelNames = res.data.models.map(m => typeof m === 'string' ? m : m.name);
-            setOllamaModels(modelNames);
+const modelNames = res.data.models.map(m => (typeof m === 'string' ? m : m.name));
+setOllamaModels(modelNames);
             console.log("Ollama models state after setting:", modelNames);
             if (modelNames.length > 0) {
               setSelectedOllamaModel(modelNames[0]);
@@ -159,7 +165,7 @@ const SimpleBenchRunner: React.FC = () => {
     }
 
     const requestBody = {
-      scenario_ids: selectedScenarioIds,
+      scenario_ids: selectedScenarioIds.map(id => id.toString()),
       provider: provider,
       apiKey: provider === 'openai' ? apiKey : undefined,
       model: modelToSend,
@@ -168,26 +174,18 @@ const SimpleBenchRunner: React.FC = () => {
     try {
       // Call the updated /api/v1/simplebench/run endpoint
       const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJuYW1lIjoiVGVzdCBVc2VyIiwiaWF0IjoxNjgwMDAwMDAwfQ.abc123"; // Replace with the generated JWT
-      const res = await axios.post<SimpleBenchRunResponse>(
-        "http://127.0.0.1:8001/api/v1/benchmarks/simplebench/run",
+      const res = await axios.post<{ job_id: string; results: BenchResult[] }>(
+        "http://127.0.0.1:8000/api/v1/simplebench/run-sync",
         requestBody,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // The backend now returns a job_id. The actual results will be fetched separately or pushed via WebSocket.
-      // For now, let's display a message indicating the job has started.
-      // The results display logic will need to be updated to fetch results using the job_id.
-      setResults([{
-        scenario_id: 0, // Placeholder, as results are not immediately available
-        prompt: `SimpleBench job submitted with ID: ${res.data.job_id}. Provider: ${provider}, Model: ${requestBody.model}.`,
-        llm_response: `Status: ${res.data.message}. Check results using job ID. Results URL (if available): ${res.data.results_url || 'N/A'}`,
-        expected_answer: "",
-        model_used: requestBody.model
-      }]);
-      // TODO: Implement fetching results for the job_id, or use WebSockets.
-      // For now, the results area will show this submission message.
-      // The actual scenario results are in a JSON file on the server, pointed to by results_url in the job status.
-      // The /simplebench/results/{job_id} endpoint needs to be able to serve this.
-
+      setJobId(res.data.job_id || "");
+      setResults(
+        res.data.results.map(r => ({
+          ...r,
+          llm_response: r.response
+        }))
+      );
     } catch (err) {
       let errorMessage = "An error occurred while running SimpleBench";
       if (axios.isAxiosError<{ detail?: string }>(err)) {
@@ -254,8 +252,8 @@ const SimpleBenchRunner: React.FC = () => {
                 disabled={ollamaModels.length === 0}
               >
                 {ollamaModels.length > 0 ? (
-                  ollamaModels.map((model, index) => (
-                    <option key={index} value={model}>{model}</option>
+ollamaModels.map((model) => (
+  <option key={`${model}-${ollamaModels.indexOf(model)}`} value={model}>{model}</option>
                   ))
                 ) : (
                   <option value="">No models available</option>
@@ -316,19 +314,78 @@ const SimpleBenchRunner: React.FC = () => {
       )}
 
       {/* Results Display */}
+      {jobId && (
+        <div style={{ marginBottom: '20px', color: '#333', fontWeight: 'bold' }}>
+          Job ID for this run: <span style={{ fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px' }}>{jobId}</span>
+        </div>
+      )}
       {results.length > 0 && (
         <div>
           <h3>Results</h3>
           <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px' }}>
-            {results.map((result, index) => (
-              <div key={index} style={{ marginBottom: '20px', padding: '15px', border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#f5f5f5' }}>
-                <p><strong>Scenario ID:</strong> {result.scenario_id}</p>
-                <p><strong>Prompt:</strong> {result.prompt}</p>
-                <p><strong>Model Used:</strong> {result.model_used}</p>
-                <div><strong>LLM Response:</strong> <pre style={{ whiteSpace: 'pre-wrap', backgroundColor: '#eef', padding: '10px', borderRadius: '4px' }}>{result.llm_response}</pre></div>
-                <div><strong>Expected Answer:</strong> <pre style={{ whiteSpace: 'pre-wrap', backgroundColor: '#efe', padding: '10px', borderRadius: '4px' }}>{result.expected_answer}</pre></div>
-                {result.error && <p style={{ color: 'red' }}><strong>Error:</strong> {result.error}</p>}
-              </div>
+      {results.map((result, index) => (
+        <div key={index} style={{ 
+          marginTop: '15px',
+          padding: '10px',
+          backgroundColor: '#e6fffa',
+          border: '1px solid #38a169',
+          borderRadius: '4px'
+        }}>
+          <h4>Scenario ID: {result.scenario_id}</h4>
+          <div style={{ margin: '10px 0' }}>
+            <strong>Model Used:</strong> {result.model_used}
+          </div>
+          <div style={{ margin: '10px 0' }}>
+            <strong>Prompt:</strong> 
+            <div style={{ 
+              padding: '10px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '4px',
+              marginTop: '5px'
+            }}>{result.prompt}</div>
+          </div>
+          <div style={{ margin: '10px 0' }}>
+            <strong>Output:</strong>
+            <pre style={{ 
+              whiteSpace: 'pre-wrap',
+              fontFamily: 'monospace',
+              padding: '10px',
+              backgroundColor: '#fff',
+              borderRadius: '4px',
+              marginTop: '5px'
+            }}>
+              {(() => {
+                // Try to parse as JSON and show .message if present, else show raw
+                try {
+                  const parsed = typeof result.llm_response === 'string' ? JSON.parse(result.llm_response) : result.llm_response;
+                  if (parsed && typeof parsed === 'object' && 'message' in parsed) {
+                    return parsed.message;
+                  }
+                  return typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
+                } catch {
+                  return result.llm_response;
+                }
+              })()}
+            </pre>
+          </div>
+          <div style={{ margin: '10px 0' }}>
+            <strong>Expected Answer:</strong>
+            <div style={{ 
+              padding: '10px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '4px',
+              marginTop: '5px',
+              color: '#2b8a3e'
+            }}>{result.expected_answer}</div>
+          </div>
+          <div style={{ 
+            marginTop: '10px',
+            color: result.passed ? '#2b8a3e' : '#c92a2a',
+            fontWeight: 'bold'
+          }}>
+            {result.passed ? '✓ Passed' : '✗ Failed'}
+          </div>
+        </div>
             ))}
           </div>
         </div>

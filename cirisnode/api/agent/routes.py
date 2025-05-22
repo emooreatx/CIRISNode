@@ -1,48 +1,42 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from cirisnode.api.auth.dependencies import verify_token
+from fastapi import APIRouter, Depends, HTTPException, Body
 from pydantic import BaseModel
-from typing import Dict, Any
-from datetime import datetime
+from typing import Optional
 from cirisnode.database import get_db
-import sqlite3
-import logging
+import uuid
+import datetime
 import json
-from cirisnode.utils.encryption import encrypt_data, decrypt_data
 
-# Setup logging
-logger = logging.getLogger(__name__)
+agent_router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
 
-agent_router = APIRouter(tags=["agent"])
-
-class AgentEvent(BaseModel):
+class AgentEventRequest(BaseModel):
     agent_uid: str
-    event_json: Dict[str, Any]
+    event: dict
 
-@agent_router.post("/events", response_model=dict)
-def push_agent_event(event: AgentEvent, db: sqlite3.Connection = Depends(get_db), token: Dict = Depends(verify_token)):
-    """Endpoint for agents to push Task/Thought/Action events for observability."""
+@agent_router.post("/events")
+async def post_agent_event(request: AgentEventRequest, db=Depends(get_db)):
+    """
+    Agents push Task / Thought / Action events for observability.
+    """
+    event_id = str(uuid.uuid4())
+    conn = next(db) if hasattr(db, "__iter__") and not isinstance(db, (str, bytes)) else db
+    conn.execute(
+        """
+        INSERT INTO agent_events (id, node_ts, agent_uid, event_json)
+        VALUES (?, ?, ?, ?)
+        """,
+        (event_id, datetime.datetime.utcnow(), request.agent_uid, json.dumps(request.event))
+    )
+    conn.commit()
+    # Write audit log
     try:
-        node_ts = datetime.utcnow().isoformat()
-        event_json_str = decrypt_data(event.event_json)
-        
-        cursor = db.execute(
-            "INSERT INTO agent_events (node_ts, agent_uid, event_json) VALUES (?, ?, ?)",
-            (node_ts, event.agent_uid, encrypt_data(event_json_str))
+        from cirisnode.utils.audit import write_audit_log
+        write_audit_log(
+            db=conn,
+            actor=request.agent_uid,
+            event_type="agent_event",
+            payload={"event_id": event_id},
+            details=request.event
         )
-        event_id = cursor.lastrowid
-        db.commit()
-        
-        # Log the agent event to audit
-        from cirisnode.api.audit.routes import log_audit_event
-        event_payload = {
-            "action": "push_agent_event",
-            "event_id": event_id,
-            "agent_uid": event.agent_uid
-        }
-        log_audit_event(db, event.agent_uid, "agent_event", event_payload)
-        
-        logger.info(f"Agent event pushed by UID: {event.agent_uid}, Event ID: {event_id}")
-        return {"status": "success", "event_id": event_id, "message": "Agent event recorded successfully"}  # Ensure JSON response
     except Exception as e:
-        logger.error(f"Error pushing agent event: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error pushing agent event: {str(e)}")
+        print(f"WARNING: Failed to write audit log for agent_event: {e}")
+    return {"id": event_id, "status": "ok"}

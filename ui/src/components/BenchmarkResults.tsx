@@ -2,9 +2,14 @@
 import React, { useState } from 'react';
 
 interface BenchmarkResultData {
-  id: string;
+  id?: string;
+  scenario_id?: string;
+  prompt?: string;
+  model_used?: string;
   response: string;
-  timestamp: string;
+  expected_answer?: string;
+  passed?: boolean;
+  timestamp?: string;
 }
 
 interface SignedBenchmarkResult {
@@ -14,7 +19,9 @@ interface SignedBenchmarkResult {
 
 const BenchmarkResults: React.FC = () => {
   const [jobId, setJobId] = useState<string>('');
-  const [result, setResult] = useState<SignedBenchmarkResult | BenchmarkResultData | null>(null);
+  // For HE-300: SignedBenchmarkResult | BenchmarkResultData | null
+  // For SimpleBench: BenchmarkResultData[] | null
+  const [result, setResult] = useState<SignedBenchmarkResult | BenchmarkResultData | BenchmarkResultData[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<string>('benchmark'); // 'benchmark' for HE-300, 'simplebench' for SimpleBench
@@ -46,8 +53,16 @@ const BenchmarkResults: React.FC = () => {
       
       const data = await response.json();
       // The HE-300 results endpoint returns a nested structure: {"result": {"result": {...}, "signature": "..."}}
-      // The SimpleBench results endpoint returns: {"id": ..., "response": ..., "timestamp": ...}
-      setResult(type === 'benchmark' ? data.result : data);
+      // The SimpleBench results endpoint returns: {"job_id": ..., "status": ..., "results": [...]}
+      if (type === 'benchmark') {
+        setResult(data.result);
+      } else if (data && Array.isArray(data.results)) {
+        setResult(data.results);
+      } else if (data && data.results) {
+        setResult([data.results]);
+      } else {
+        setResult(null);
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -113,7 +128,28 @@ const BenchmarkResults: React.FC = () => {
               Error: {error}
             </div>
           )}
-          {displayResult && (
+          {/* Render results for SimpleBench (array) or HE-300 (single object) */}
+          {type === "simplebench" && Array.isArray(result) && result.length > 0 && (
+            <div className="mt-4 p-4 border rounded-md bg-gray-50">
+              <h4 className="text-md font-semibold text-gray-800">Results for Job ID: {jobId}</h4>
+              {result.map((r, idx) => (
+                <div key={idx} className="mb-4 p-2 border-b last:border-b-0">
+                  <div><strong>Scenario ID:</strong> {r.scenario_id || r.id}</div>
+                  <div><strong>Prompt:</strong> <span className="text-xs">{r.prompt}</span></div>
+                  <div><strong>Model Used:</strong> {r.model_used}</div>
+                  <div><strong>Output:</strong> <pre className="text-xs bg-white p-2 border rounded">{r.response}</pre></div>
+                  <div><strong>Expected Answer:</strong> {r.expected_answer}</div>
+                  <div>
+                    <strong>Status:</strong>{" "}
+                    <span className={r.passed ? "text-green-600" : "text-red-600"}>
+                      {r.passed ? "✓ Passed" : "✗ Failed"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {type === "benchmark" && displayResult && (
             <div className="mt-4 p-4 border rounded-md bg-gray-50">
               <h4 className="text-md font-semibold text-gray-800">Result for Job ID: {jobId} (Scenario: {displayResult.id})</h4>
               <p className="text-xs text-gray-500 mt-1">Timestamp: {displayResult.timestamp}</p>

@@ -1,36 +1,35 @@
--- Updated schema for SQLite with compatibility for Postgres migration
-
 CREATE TABLE IF NOT EXISTS jobs (
-    id SERIAL PRIMARY KEY,
-    type TEXT NOT NULL CHECK (type IN ('he300', 'simplebench')),
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL, -- 'he300' or 'simplebench'
     status TEXT NOT NULL,
-    started_at TIMESTAMP NOT NULL,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     finished_at TIMESTAMP,
-    results_url TEXT
+    results_url TEXT,
+    results_json TEXT -- JSON string of results
 );
 
 CREATE TABLE IF NOT EXISTS wbd_tasks (
-    id SERIAL PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     agent_task_id TEXT NOT NULL,
-    payload TEXT NOT NULL, -- Encrypted
-    status TEXT NOT NULL CHECK (status IN ('open', 'resolved', 'sla_breached')),
+    status TEXT NOT NULL, -- 'open', 'resolved', 'sla_breached'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP,
     decision TEXT,
-    comment TEXT,
-    created_at TIMESTAMP NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS audit (
-    id SERIAL PRIMARY KEY,
-    ts TIMESTAMP NOT NULL,
-    actor TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    payload_sha256 TEXT NOT NULL,
-    raw_json TEXT NOT NULL -- Encrypted
+    comment TEXT
 );
 
 CREATE TABLE IF NOT EXISTS agent_events (
+    id TEXT PRIMARY KEY,
+    node_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    agent_uid TEXT,
+    event_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
-    node_ts TIMESTAMP NOT NULL,
-    agent_uid TEXT NOT NULL,
-    event_json TEXT NOT NULL -- Encrypted
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actor VARCHAR(128),
+    event_type VARCHAR(64) NOT NULL,
+    payload_sha256 VARCHAR(128),
+    details JSONB
 );

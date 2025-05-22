@@ -19,13 +19,13 @@ const TestConnection = () => {
         setError(null); // Clear previous errors
         try {
           const res = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/ollama-models`);
-          if (res.data.models && res.data.models.length > 0) {
+          if (res.data?.models?.length > 0) {
             setOllamaModels(res.data.models);
-            setSelectedOllamaModel(res.data.models[0]); // Select the first model by default
+            setSelectedOllamaModel(res.data.models[0]);
           } else {
             setOllamaModels([]);
             setSelectedOllamaModel('');
-            setError('No Ollama models found. Ensure Ollama is running and has models installed.');
+            setError('No models available. Ensure Ollama is running with models installed.');
           }
         } catch (err) {
           setError('Failed to fetch Ollama models: ' + (err.response?.data?.detail || err.message));
@@ -56,16 +56,16 @@ const TestConnection = () => {
     setError(null);
     setResponse(null);
 
-    const requestBody = {
-      provider: provider,
-      prompt: "Hi, can you confirm you are operational?",
-      apiKey: provider === 'openai' ? apiKey : undefined, // Only send apiKey for OpenAI
-      model: provider === 'ollama' ? selectedOllamaModel : (provider === 'openai' ? 'gpt-3.5-turbo' : undefined) // Send selected model for Ollama
-    };
+const requestBody = {
+  provider,
+  prompt: "Hi, can you confirm you are operational?",
+  ...(provider === 'openai' && { apiKey }), // Only include apiKey for OpenAI
+        model: provider === 'ollama' ? (typeof selectedOllamaModel === 'string' ? selectedOllamaModel : selectedOllamaModel.name) : (provider === 'openai' ? 'gpt-3.5-turbo' : undefined)
+};
 
     try {
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/test-llm`, requestBody);
-      setResponse(`Model: ${res.data.model_used || selected_model || 'default'}\nResponse: ${res.data.message}`);
+      setResponse(res.data.message); // Display raw LLM response
     } catch (error) {
       setError('Failed to connect to LLM: ' + (error.response?.data?.detail || error.message));
       setResponse(null);

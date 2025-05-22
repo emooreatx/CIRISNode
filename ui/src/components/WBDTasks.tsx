@@ -30,11 +30,7 @@ const WBDTasks: React.FC = () => {
       if (sinceFilter) params.append('since', sinceFilter);
       if (params.toString()) url += `?${params.toString()}`;
 
-      const token = localStorage.getItem('authToken');
       const headers: HeadersInit = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       const response = await fetch(url, { headers });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
@@ -61,11 +57,7 @@ const WBDTasks: React.FC = () => {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken'); // Get token here
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       const response = await fetch(`/api/v1/wbd/tasks/${resolveTaskId}/resolve`, {
         method: 'POST',
         headers: headers,

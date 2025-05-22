@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from cirisnode.api.health.routes import router as health_router
-from cirisnode.api.wbd.routes import router as wbd_router
+from cirisnode.api.wbd.routes import wbd_router
 from cirisnode.api.audit.routes import audit_router
 from cirisnode.api.benchmarks.routes import benchmarks_router
 from cirisnode.api.benchmarks.content import router as benchmarks_content_router

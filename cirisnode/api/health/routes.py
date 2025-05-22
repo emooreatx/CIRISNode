@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Depends
-from cirisnode.api.auth.dependencies import get_public_key
 from cirisnode.config import settings
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1")
 
 @router.get("/health")
-async def health_check(public_key: str = Depends(get_public_key)):
+async def health_check():
     return {
         "status": "ok",
-        "version": VERSION,
-        "pubkey": public_key
+        "version": "1.0.0",  # Placeholder version
     }

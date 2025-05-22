@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from cirisnode.api.auth.dependencies import verify_token, require_admin_scope # Moved import here
 from pydantic import BaseModel, ValidationError
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -30,7 +29,7 @@ class WBDResolveRequest(BaseModel):
     comment: Optional[str] = None
 
 @wa_router.post("/submit", response_model=dict)
-def submit_wbd_task(request: WBDSubmitRequest, db: sqlite3.Connection = Depends(get_db), token: Dict = Depends(verify_token)):
+def submit_wbd_task(request: WBDSubmitRequest, db: sqlite3.Connection = Depends(get_db)):
     """Submit a new WBD task for review."""
     try:
         cursor = db.execute(
@@ -66,7 +65,7 @@ def submit_wbd_task(request: WBDSubmitRequest, db: sqlite3.Connection = Depends(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error submitting WBD task: {str(e)}")
 
 @wa_router.get("/tasks", response_model=dict)
-def get_wbd_tasks(state: Optional[str] = None, since: Optional[str] = None, db: sqlite3.Connection = Depends(get_db), token: Dict = Depends(verify_token)):
+def get_wbd_tasks(state: Optional[str] = None, since: Optional[str] = None, db: sqlite3.Connection = Depends(get_db)):
     """List open WBD tasks with optional filters for state and since date. Auto-escalates tasks breaching SLA (24h)."""
     try:
         # Check for SLA breaches (24 hours) and auto-escalate
