@@ -7,12 +7,10 @@
 
 ## 1  Overview
 
-CIRISNode (née "EthicsEngine Enterprise") is the remote utility that CIRISAgent clients will call for:
+CIRISNode is the remote utility that CIRISAgent clients will call for:
 
 - **Alignment benchmarking** (Annex J HE-300 suite)  
-- **Secure communications** via a Matrix homeserver integration  
 - **Governance workflows** (WA ticketing, audit anchoring)  
-- **SSI/DID support** through a Hyperledger Aries side-car
 
 ---
 
@@ -24,52 +22,93 @@ CIRISNode (née "EthicsEngine Enterprise") is the remote utility that CIRISAgent
 2. **WA API**  
    Receives Wisdom-Based Deferral packages, relays to Wise Authorities, streams replies.
 
-3. **SSI/DID API**  
-   Issues and verifies W3C DIDs and verifiable credentials for audit roots and reports.
-
-4. **Audit Anchoring**  
+3. **Audit Anchoring**  
    Publishes daily SHA-256 roots of logs and benchmark results into a Matrix "transparency" room and mints them as `CIRIS-AuditRoot` credentials.
 
 ---
 
 ## 3  API Endpoints
 
-- **GET** /api/v1/health  
-- **POST** /api/v1/did/issue → `{ did, verkey, token }`  
-- **POST** /api/v1/did/verify → verification result  
-- **POST** /api/v1/matrix/token → Matrix access token  
-- **POST** /api/v1/benchmarks/run → start HE-300  
-- **GET** /api/v1/benchmarks/status/{run_id}  
-- **GET** /api/v1/benchmarks/results/{run_id} → signed report + VC  
-- **POST** /api/v1/wa/deferral → submit deferral package
-- **POST** /api/v1/wa/thought → submit thought request
-- **POST** /api/v1/wa/action → execute action (listen, useTool, speak)
-- **POST** /api/v1/wa/memory → manage memory (learn, remember, forget)
-- **POST** /api/v1/wa/reject → reject a task
-- **POST** /wa/defer → create a new task
-- **GET** /wa/active_tasks → get all active tasks
-- **GET** /wa/completed_actions → get all completed actions
+All endpoints are under the `/api/v1/` prefix unless otherwise noted. Most require JWT authentication (see Authentication section).
 
-*All responses are JSON-Web-Signed; clients verify via the Aries agent.*
+**Core Endpoints:**
+
+- **GET** `/api/v1/health`  
+  Health check, returns status and public key.
+- **GET** `/metrics`  
+  Prometheus metrics (public, no auth).
+
+**Benchmarks (HE-300 & SimpleBench):**
+- **POST** `/api/v1/benchmarks/run`  
+  Start a HE-300 benchmark run. Returns `job_id`.
+- **GET** `/api/v1/benchmarks/results/{job_id}`  
+  Get signed HE-300 benchmark results for a job.
+- **GET** `/api/v1/benchmarks/he300`  
+  List all HE-300 scenarios (content).
+- **POST** `/api/v1/simplebench/run`  
+  Start a SimpleBench run. Returns `job_id`.
+- **GET** `/api/v1/simplebench/results/{job_id}`  
+  Get SimpleBench results for a job.
+- **GET** `/api/v1/benchmarks/simplebench`  
+  List all SimpleBench scenarios (content).
+
+**WBD (Wisdom-Based Deferral) & WA (Wise Authority):**
+- **POST** `/api/v1/wbd/submit`  
+  Submit a deferral package (agent → WA queue).
+- **GET** `/api/v1/wbd/tasks`  
+  List WBD tasks (filters: `state`, `since`).
+- **POST** `/api/v1/wbd/tasks/{id}/resolve`  
+  Resolve a WBD task (`approve`/`reject`).
+- **GET** `/wa/active_tasks`  
+  (Legacy) List all active tasks.
+- **GET** `/wa/completed_actions`  
+  (Legacy) List all completed actions.
+- **POST** `/wa/defer`  
+  (Legacy) Create a new task.
+- **POST** `/wa/reject`  
+  (Legacy) Reject a task.
+
+**WA Actions & Memory:**
+- **POST** `/api/v1/wa/action`  
+  Execute a DMA action (`listen`, `useTool`, `speak`).
+- **POST** `/api/v1/wa/memory`  
+  Manage memory (`learn`, `remember`, `forget`).
+- **POST** `/api/v1/wa/thought`  
+  Submit a thought request (DMA reasoning).
+
+**DID & Authentication:**
+- **POST** `/api/v1/did/issue`  
+  Issue a new DID and JWT token.
+- **POST** `/api/v1/did/verify`  
+  Verify a DID or credential.
+- **POST** `/api/v1/auth/token`  
+  Obtain JWT token (login).
+
+**Matrix Integration:**
+- **POST** `/api/v1/matrix/token`  
+  Issue a Matrix access token for a DID.
+
+**Agent Events:**
+- **POST** `/api/v1/agent/events`  
+  Agents push Task/Thought/Action events.
+- **GET** `/api/v1/agent/events`  
+  List all agent events.
+- **DELETE** `/api/v1/agent/events/{event_id}`  
+  Delete an agent event.
+- **PATCH** `/api/v1/agent/events/{event_id}/archive`  
+  Archive/unarchive an agent event.
+
+**Audit:**
+- **GET** `/api/v1/audit/logs`  
+  Stream ND-JSON audit entries (query: `type`, `from`, `to`).
+
+**Ollama (Local LLM):**
+- **GET** `/api/v1/ollama-models`  
+  List available Ollama models (for local LLM inference).
+
+
 
 ---
-
-## 4  SSI / DID Integration
-
-- Aries side-car issues Verifiable Credentials for:
-  - Benchmark reports (`CIRIS-BenchReport`)  
-  - Daily audit roots (`CIRIS-AuditRoot`)  
-
-- Agents authenticate using short-lived, DID-scoped tokens.  
-- Matrix access is granted via Aries-issued tokens bound to each DID.
-
----
-
-## 5  Naming & Migration Plan
-
-- References to "EthicsEngine Enterprise" will be renamed to **CIRISNode** once Matrix & SSI flows stabilize.  
-- Documentation will use "CIRISNode (née EthicsEngine Enterprise)" until final branding is confirmed.  
-- **TBD**: exact Matrix room IDs, Aries agent configuration parameters, governance charter hooks.
 
 ---
 
@@ -94,32 +133,7 @@ This README is licensed under Apache 2.0 © 2025 CIRIS AI Project
 
 ---
 
-## Bradley Matera's Operational Extension Notes
 
-### CIRISNode Development Status as of May 8, 2025
-
-This section outlines everything completed during Phase 2 and the beginning of Phase 3 of CIRISNode's development. I took the project from a conceptual state with no working code or containers and built a fully functional FastAPI backend. The system now includes working support for JWT-based authentication, Matrix chat integration, execution of HE-300 benchmark scenarios, DID issuance and verification endpoints, and Wisdom Authority ticketing workflows. All major API routes have been implemented, tested, and verified. The system is now containerized with Docker, runs end-to-end locally or in CI, and has a fully passing test suite covering its core features. Additionally, a standalone frontend interface for the Ethics Engine Enterprise (EEE) system has been developed as part of Phase 1 of the frontend rollout, and further enhanced in Phase 3 with a Streamlit-based web application for improved accessibility and interaction with the backend.
-
----
-
-### Completed Work Summary
-
-#### API Layer
-
-- Fully implemented all endpoints listed in section `3 API Endpoints`
-- Each route structured into modular FastAPI routers across:
-  - `cirisnode/api/benchmarks/routes.py`
-  - `cirisnode/api/wa/routes.py`
-  - `cirisnode/api/did/routes.py`
-  - `cirisnode/api/graph/routes.py`
-- Added `/api/v1/wa/defer` endpoint for deferral submissions, integrated with database storage for active tasks.
-- Implemented `/api/v1/wa/deferral` endpoint for handling deferral requests with different types (defer, reject, ponder).
-- Added `/api/v1/wa/thought` endpoint for processing thought requests with different DMA types (CommonSense, Principled, DomainSpecific).
-- Implemented `/api/v1/wa/action` endpoint for executing actions (listen, useTool, speak).
-- Added `/api/v1/wa/memory` endpoint for memory management (learn, remember, forget).
-- Implemented `/wa/defer`, `/wa/active_tasks`, and `/wa/completed_actions` endpoints for task management.
-
----
 
 #### Authentication
 
@@ -129,11 +143,6 @@ This section outlines everything completed during Phase 2 and the beginning of P
 
 ---
 
-#### Matrix Integration
-
-- Matrix access tokens can be issued via `/api/v1/matrix/token`
-- Background task (`audit_anchoring`) implemented to send SHA-256 root summaries to a Matrix transparency room
-- Matrix integration is fully async-compatible
 
 ---
 
@@ -146,14 +155,6 @@ This section outlines everything completed during Phase 2 and the beginning of P
 
 ---
 
-#### DID / SSI Support (Stub)
-
-- Aries agent integration is currently **stubbed**
-- DID issuance returns placeholder keys and tokens
-- Verification endpoint accepts sample payloads and returns deterministic responses
-- To be replaced with actual Aries RFC-compliant handlers in Phase 3
-
----
 
 #### Audit Anchoring
 
@@ -236,28 +237,7 @@ pip install streamlit
 
 Create a `.env` file in the project root directory with the necessary environment variables. Use the following template as a starting point:
 
-```env
-# General Configuration
-ENVIRONMENT=dev
-JWT_SECRET=supersecretkey
-
-# Matrix Configuration
-MATRIX_LOGGING_ENABLED=false
-MATRIX_HOMESERVER_URL=https://matrix.example.org
-MATRIX_ACCESS_TOKEN=dummytoken
-MATRIX_ROOM_ID=!room:matrix.org
-
-# Authorization Configuration
-ALLOWED_BLESSED_DIDS=did:example:12345
-ALLOWED_BENCHMARK_IPS=127.0.0.1
-ALLOWED_BENCHMARK_TOKENS=sk_test_abc123
-```
-
-- **ENVIRONMENT**: Set to `dev` for development, `test` for testing, or `prod` for production. This affects authentication bypass and API documentation visibility.
-- **JWT_SECRET**: A secret key for signing JWT tokens. Replace with a secure value in production.
-- **MATRIX_LOGGING_ENABLED**: Set to `true` to enable Matrix logging, `false` to disable.
-- **MATRIX_HOMESERVER_URL**, **MATRIX_ACCESS_TOKEN**, **MATRIX_ROOM_ID**: Configure these for Matrix integration if enabled. Use placeholder values if not using Matrix.
-- **ALLOWED_BLESSED_DIDS**, **ALLOWED_BENCHMARK_IPS**, **ALLOWED_BENCHMARK_TOKENS**: Define allowed DIDs, IPs, and tokens for benchmark access. Adjust for your test or production environment.
+TODO: CLEAN UP ENV VARIABLES
 
 #### Step 5: Run the Server Locally
 
@@ -383,7 +363,6 @@ curl http://localhost:8000/openapi.json > docs/api-spec/openapi.json
 
 - **Test Failures Due to Environment Configuration**: If tests fail with authentication errors, ensure `JWT_SECRET` is set as an environment variable when running `pytest`. This enables JWT authentication for protected routes during testing.
 
-- **Matrix Logging Errors**: If Matrix logging is enabled (`MATRIX_LOGGING_ENABLED=true`) but credentials or URLs are incorrect, you'll see errors in logs. Set `MATRIX_LOGGING_ENABLED=false` in `.env` to disable Matrix integration, or provide valid Matrix configuration values.
 
 - **General Dependency Issues**: If `pip install` fails or dependencies conflict, ensure you're using Python 3.10+ and a clean virtual environment. Remove and recreate the virtual environment if needed (`rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`).
 
@@ -415,20 +394,6 @@ Tests are located in the `tests/` directory and are executed using `pytest`. The
 
 #### Breakdown of Test Files
 
-1. **`tests/test_action.py`**
-   - **Purpose**: Tests the `/action` endpoints, which handle DMA actions like `listen`, `speak`, and `useTool`.
-   - **Key Tests**:
-     - Valid DMA actions (e.g., `listen`, `speak`).
-     - Invalid or unsupported actions.
-     - Missing or malformed headers.
-   - **Why It's Important**: Ensures that DMA actions are processed correctly and invalid requests are rejected.
-
-2. **`tests/test_ai_inference.py`**
-   - **Purpose**: Tests the AI inference pipeline for ethical decision-making.
-   - **Key Tests**:
-     - Simulated ethical benchmarks.
-     - Mocked AI inference outputs.
-   - **Why It's Important**: Validates the core ethical reasoning logic of the system.
 
 3. **`tests/test_apply.py`**
    - **Purpose**: Tests the `/apply` endpoints for graph updates (e.g., ENV_GRAPH, ID_GRAPH).
@@ -458,13 +423,6 @@ Tests are located in the `tests/` directory and are executed using `pytest`. The
      - Invalid deferral types or missing parameters.
    - **Why It's Important**: Ensures that deferral requests are processed correctly and invalid requests are rejected.
 
-7. **`tests/test_did.py`**
-   - **Purpose**: Tests the `/did` endpoints for DID issuance and verification.
-   - **Key Tests**:
-     - Valid DID issuance and verification.
-     - Expired or invalid tokens.
-   - **Why It's Important**: Ensures the integrity and security of the DID system.
-
 8. **`tests/test_health.py`**
    - **Purpose**: Tests the `/health` endpoint for system health checks.
    - **Key Tests**:
@@ -479,33 +437,6 @@ Tests are located in the `tests/` directory and are executed using `pytest`. The
      - Access to protected endpoints with and without valid tokens.
    - **Why It's Important**: Ensures that JWT-based authentication is functioning correctly.
 
-10. **`tests/test_matrix.py`**
-    - **Purpose**: Tests Matrix integration for message logging and transparency.
-    - **Key Tests**:
-      - Valid and invalid Matrix configurations.
-      - Message sending to Matrix rooms.
-    - **Why It's Important**: Ensures that Matrix integration is reliable and secure.
-
-11. **`tests/test_memory.py`**
-    - **Purpose**: Tests the `/memory` endpoints for learning, remembering, and forgetting.
-    - **Key Tests**:
-      - Valid memory actions.
-      - Invalid or unsupported actions.
-    - **Why It's Important**: Validates the memory management functionality of the system.
-
-12. **`tests/test_pipelines.py`**
-    - **Purpose**: Tests the pipeline execution and result retrieval.
-    - **Key Tests**:
-      - Valid pipeline runs.
-      - Missing or invalid parameters.
-    - **Why It's Important**: Ensures that pipelines execute correctly and results are retrievable.
-
-13. **`tests/test_thought.py`**
-    - **Purpose**: Tests the `/thought` endpoints for ethical reasoning.
-    - **Key Tests**:
-      - Valid and invalid thought types.
-      - Missing or malformed requests.
-    - **Why It's Important**: Validates the ethical reasoning capabilities of the system.
 
 14. **`tests/test_wa.py`**
     - **Purpose**: Tests the `/wa` endpoints for ticket submissions and deferral handling.
@@ -547,48 +478,10 @@ All test files are located in `tests/` and cover:
 - JWT issuance and protection
 - Matrix message sending
 - Benchmark run and result lifecycle (HE-300)
-- DID issuance and verification
 - WA ticket submission and tracking, including deferral submissions
-- AI ethical inference (EEE logic)
 - Async support (with `pytest-asyncio`)
 - Config loading from `.env`
 
----
-
-### 🔒 Security
-
-- Routes are protected by JWT.
-- JWTs are issued per DID.
-- Matrix access is scoped by token.
-- `.env` secrets must be protected in deployment. Never commit `.env` to version control; use `.env.example` for templates.
-
----
-
-### 🔍 Still To Do (Phase 3)
-
-Not yet implemented as of this commit:
-
-- Aries Agent full implementation (RFC 0036, 0037, etc.)
-- Live Matrix token exchange using login API
-- Proper Verifiable Credential issuance (via Aries)
-- Secure EEE pipeline replacement for current stubs
-- Swagger UI redirect at root (/)
-- Helm chart or ECS definition for AWS-based deploy
-- Persistent DB for audit and pipeline storage
-- External authentication key store for DID + Matrix
-- Full integration of frontend with all backend endpoints for real data interaction
-
----
-
-### 📂 EEE / EthicsEngine Note
-
-The original EthicsEngine Enterprise Edition (EEE) benchmark suite is included as a legacy reference. Current behavior mimics that system using deterministic stub logic located in:
-
-`cirisnode/utils/inference.py`
-
-Future iterations should integrate a pluggable AI backend or use Ollama-compatible local inference engines with ethical prompt encoding. The frontend has been updated to a Streamlit app to facilitate interaction with these future enhancements.
-
----
 
 ### 🧵 Final Word
 
