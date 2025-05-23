@@ -12,16 +12,6 @@ interface SimpleBenchData {
   eval_data: Scenario[];
 }
 
-// Expected response structure from the simplebench/run endpoint
-interface SimpleBenchRunResponse {
-  scenario_id: string;
-  model_used: string;
-  prompt: string;
-  response: string;
-  expected_answer: string;
-  passed: boolean;
-}
-
 const SimpleBenchRunner: React.FC = () => {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selectedScenarioIds, setSelectedScenarioIds] = useState<number[]>([]);

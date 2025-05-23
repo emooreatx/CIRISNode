@@ -1,32 +1,29 @@
+version: "3.9"
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: alignordie/cirisnode:backend-latest
     ports:
       - "8000:8000"
     depends_on:
       - db
       - redis
     environment:
-      - DATABASE_URL=sqlite:///app/cirisnode/db/cirisnode.db  # Match container path
+      - DATABASE_URL=postgresql://postgres:password@db:5432/cirisnode
       - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - .:/app
+      - JWT_SECRET=${JWT_SECRET}
+      - ENVIRONMENT=prod
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: alignordie/cirisnode:backend-latest
     command: celery -A cirisnode.celery_app worker -l info
     depends_on:
       - db
       - redis
     environment:
-      - DATABASE_URL=sqlite:///app/cirisnode/db/cirisnode.db  # Match container path
+      - DATABASE_URL=postgresql://postgres:password@db:5432/cirisnode
       - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - .:/app
+      - JWT_SECRET=${JWT_SECRET}
+      - ENVIRONMENT=prod
 
   db:
     image: postgres:13
@@ -45,13 +42,14 @@ services:
       - "6379:6379"
 
   ui:
-    build:
-      context: ./ui
-      dockerfile: Dockerfile  # Assuming a Dockerfile exists in ./ui
+    image: alignordie/cirisnode:ui-latest
     ports:
       - "3000:3000"
-    depends_on:
-      - api
+    environment:
+      - NEXTAUTH_URL=https://node0.ciris.ai
+      - NEXT_PUBLIC_API_BASE_URL=http://api:8000
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
 
 volumes:
   postgres_data:
