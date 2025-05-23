@@ -39,7 +39,7 @@ services:
   redis:
     image: redis:6-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
   ui:
     image: alignordie/cirisnode:ui-latest
