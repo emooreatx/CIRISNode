@@ -49,20 +49,13 @@ All endpoints use the `/api/v1` prefix unless noted otherwise. Most require a JW
 - **POST** `/api/v1/wbd/submit` – Submit a deferral request.
 - **GET** `/api/v1/wbd/tasks` – List deferral tasks.
 - **POST** `/api/v1/wbd/tasks/{task_id}/resolve` – Approve or reject a deferral.
-- **POST** `/api/v1/wa/submit` – Store a deferral task using the WA backend.
-- **GET** `/api/v1/wa/tasks` – List stored WA tasks.
-- **POST** `/api/v1/wa/tasks/{task_id}/resolve` – Resolve a WA task.
+- **GET** `/api/v1/wbd/corrections` – Poll for resolved tasks.
 - **POST** `/api/v1/wa/deferral` – Placeholder endpoint for future deferral logic.
 
-**Agent Events and Audit:**
+**Agent Events:**
 
 - **POST** `/api/v1/agent/events` – Record agent events for auditing.
 - **GET** `/api/v1/agent/events` – List recorded agent events.
-- **DELETE** `/api/v1/agent/events/{event_id}` – Remove an agent event.
-- **PATCH** `/api/v1/agent/events/{event_id}/archive` – Archive or unarchive an event.
-- **GET** `/api/v1/audit/logs` – Retrieve audit log entries.
-- **DELETE** `/api/v1/audit/logs/{log_id}` – Delete an audit log entry.
-- **PATCH** `/api/v1/audit/logs/{log_id}/archive` – Archive or unarchive an audit log entry.
 
 **LLM Utilities:**
 
@@ -403,11 +396,11 @@ Tests are located in the `tests/` directory and are executed using `pytest`. The
 
 
 14. **`tests/test_wa.py`**
-    - **Purpose**: Tests the `/wa` endpoints for ticket submissions and deferral handling.
+    - **Purpose**: Tests the Wisdom‑Based Deferral endpoints.
     - **Key Tests**:
-      - Valid ticket submissions.
-      - Valid and invalid deferral requests.
-    - **Why It's Important**: Ensures that WA-related workflows are functioning correctly.
+      - Task submission and resolution flows.
+      - Retrieval of resolved corrections.
+    - **Why It's Important**: Ensures that deferral tracking works end‑to‑end.
 
 ---
 
