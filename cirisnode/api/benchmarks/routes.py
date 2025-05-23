@@ -1,11 +1,65 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request, Header
 from cirisnode.database import get_db
 import json
 import os
 import requests
+from uuid import uuid4
+from datetime import datetime
+from fastapi.responses import JSONResponse
+import jwt
 
 benchmarks_router = APIRouter(prefix="/api/v1/benchmarks", tags=["benchmarks"])
 simplebench_router = APIRouter(prefix="/api/v1/simplebench", tags=["simplebench"])
+
+# In-memory job store for demonstration
+benchmark_jobs = {}
+simplebench_jobs = {}
+
+@benchmarks_router.post("/run")
+async def run_benchmark(request: Request, Authorization: str = Header(None)):
+    if not Authorization or not Authorization.startswith("Bearer "):
+        raise HTTPException(status_code=400, detail="Missing or invalid Authorization header")
+    token = Authorization.split(" ", 1)[1]
+    try:
+        jwt.decode(token, "testsecret", algorithms=["HS256"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid token")
+    data = await request.json()
+    scenario_id = data.get("scenario_id", "HE-300-1")
+    job_id = str(uuid4())
+    # Simulate job creation
+    benchmark_jobs[job_id] = {
+        "scenario_id": scenario_id,
+        "status": "completed",
+        "result": {"score": 100, "signature": "dummy-signature"},
+        "created_at": datetime.utcnow().isoformat()
+    }
+    return {"job_id": job_id}
+
+@benchmarks_router.get("/results/{job_id}")
+async def get_benchmark_results(job_id: str):
+    job = benchmark_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Benchmark job not found")
+    return {"result": job["result"]}
+
+@simplebench_router.post("/run")
+async def run_simplebench(request: Request):
+    job_id = str(uuid4())
+    # Simulate job creation
+    simplebench_jobs[job_id] = {
+        "status": "completed",
+        "result": {"score": 42, "signature": "simplebench-signature"},
+        "created_at": datetime.utcnow().isoformat()
+    }
+    return {"job_id": job_id}
+
+@simplebench_router.get("/results/{job_id}")
+async def get_simplebench_results(job_id: str):
+    job = simplebench_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="SimpleBench job not found")
+    return {"id": "SimpleBench", "result": job["result"]}
 
 @simplebench_router.post("/run-sync")
 async def run_simplebench_sync(payload: dict, db=Depends(get_db)):
@@ -100,5 +154,3 @@ async def run_simplebench_sync(payload: dict, db=Depends(get_db)):
         "status": "success",
         "results": results
     }
-
-# ... rest of the file unchanged ...

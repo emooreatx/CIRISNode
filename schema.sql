@@ -38,3 +38,21 @@ CREATE TABLE IF NOT EXISTS wbd_tasks (
     decision TEXT,
     comment TEXT
 );
+
+-- Table for agent events
+CREATE TABLE IF NOT EXISTS agent_events (
+    id TEXT PRIMARY KEY,
+    node_ts TIMESTAMP NOT NULL,
+    agent_uid TEXT NOT NULL,
+    event_json TEXT NOT NULL
+);
+
+-- Table for audit logs (detailed)
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actor TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload_sha256 TEXT,
+    details TEXT
+);
