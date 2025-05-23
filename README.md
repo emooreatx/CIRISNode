@@ -22,99 +22,59 @@ CIRISNode is the remote utility that CIRISAgent clients will call for:
 2. **WA API**  
    Receives Wisdom-Based Deferral packages, relays to Wise Authorities, streams replies.
 
-3. **Audit Anchoring**  
-   Publishes daily SHA-256 roots of logs and benchmark results into a Matrix "transparency" room and mints them as `CIRIS-AuditRoot` credentials.
+3. **Audit Anchoring**
+   Publishes daily SHA-256 digests of logs and benchmark results for transparency.
 
 ---
 
 ## 3  API Endpoints
 
-All endpoints are under the `/api/v1/` prefix unless otherwise noted. Most require JWT authentication (see Authentication section).
+All endpoints use the `/api/v1` prefix unless noted otherwise. Most require a JWT obtained from the authentication endpoints.
 
-**Core Endpoints:**
+**General:**
 
-- **GET** `/api/v1/health`  
-  Health check, returns status and public key.
-- **GET** `/metrics`  
-  Prometheus metrics (public, no auth).
+- **GET** `/api/v1/health` – Return service status, version, and public key.
+- **GET** `/metrics` – Expose Prometheus style metrics.
 
-**Benchmarks (HE-300 & SimpleBench):**
-- **POST** `/he300`  
-  Start HE-300 and receive six `benchmark_id` values.
-- **GET** `/bench/he300/prompts`  
-  Query `benchmark_id`, `model_id`, `agent_id` → 50 prompts.
-- **PUT** `/bench/he300/answers`  
-  Upload answers `{benchmark_id, model_id, agent_id, answers}`.
-- **GET** `/bench/he300/results/{benchmark_id}`  
-  Fetch signed results for that ID.
-- **POST** `/simplebench`  
-  Return all 10 prompts and scores in one call.
-- **GET** `/bench/simplebench/prompts`  
-  (Optional) fetch the 10 prompts separately.
-- **PUT** `/bench/simplebench/answers`  
-  Upload answers for SimpleBench.
-- **GET** `/bench/simplebench/results/{benchmark_id}`  
-  Retrieve stored SimpleBench results.
+**Benchmarks:**
 
-**WBD (Wisdom-Based Deferral) & WA (Wise Authority):**
-- **POST** `/wbd/submit`  
-  Submit a deferral package (agent → WA queue).
-- **GET** `/wbd/tasks`  
-  List WBD tasks (filters: `state`, `since`).
-- **POST** `/wbd/tasks/{id}/resolve`  
-  Resolve a WBD task (`approve`/`reject`).
-- **POST** `/wa/{service}`  
-  Invoke a Wise Authority service.
-- **GET** `/wa/active_tasks`  
-  (Legacy) List all active tasks.
-- **GET** `/wa/completed_actions`  
-  (Legacy) List all completed actions.
-- **POST** `/wa/defer`  
-  (Legacy) Create a new task.
-- **POST** `/wa/reject`  
-  (Legacy) Reject a task.
+- **POST** `/api/v1/benchmarks/run` – Launch an HE‑300 benchmark job.
+- **GET** `/api/v1/benchmarks/results/{job_id}` – Fetch results for a benchmark job.
+- **POST** `/api/v1/simplebench/run` – Start a SimpleBench job.
+- **POST** `/api/v1/simplebench/run-sync` – Run a SimpleBench job synchronously.
+- **GET** `/api/v1/simplebench/results/{job_id}` – Retrieve SimpleBench results.
 
-**WA Actions & Memory:**
-- **POST** `/api/v1/wa/action`  
-  Execute a DMA action (`listen`, `useTool`, `speak`).
-- **POST** `/api/v1/wa/memory`  
-  Manage memory (`learn`, `remember`, `forget`).
-- **POST** `/api/v1/wa/thought`  
-  Submit a thought request (DMA reasoning).
+**Wisdom‑Based Deferral (WBD) and WA:**
 
-**DID & Authentication:**
-- **POST** `/api/v1/did/issue`  
-  Issue a new DID and JWT token.
-- **POST** `/api/v1/did/verify`  
-  Verify a DID or credential.
-- **POST** `/api/v1/auth/token`  
-  Obtain JWT token (login).
+- **POST** `/api/v1/wbd/submit` – Submit a deferral request.
+- **GET** `/api/v1/wbd/tasks` – List deferral tasks.
+- **POST** `/api/v1/wbd/tasks/{task_id}/resolve` – Approve or reject a deferral.
+- **POST** `/api/v1/wa/submit` – Store a deferral task using the WA backend.
+- **GET** `/api/v1/wa/tasks` – List stored WA tasks.
+- **POST** `/api/v1/wa/tasks/{task_id}/resolve` – Resolve a WA task.
+- **POST** `/api/v1/wa/deferral` – Placeholder endpoint for future deferral logic.
 
-**Matrix Integration:**
-- **POST** `/api/v1/matrix/token`  
-  Issue a Matrix access token for a DID.
+**Agent Events and Audit:**
 
-**Agent Events:**
-- **POST** `/api/v1/agent/events`  
-  Agents push Task/Thought/Action events.
-- **GET** `/api/v1/agent/events`  
-  List all agent events.
-- **DELETE** `/api/v1/agent/events/{event_id}`  
-  Delete an agent event.
-- **PATCH** `/api/v1/agent/events/{event_id}/archive`  
-  Archive/unarchive an agent event.
+- **POST** `/api/v1/agent/events` – Record agent events for auditing.
+- **GET** `/api/v1/agent/events` – List recorded agent events.
+- **DELETE** `/api/v1/agent/events/{event_id}` – Remove an agent event.
+- **PATCH** `/api/v1/agent/events/{event_id}/archive` – Archive or unarchive an event.
+- **GET** `/api/v1/audit/logs` – Retrieve audit log entries.
+- **DELETE** `/api/v1/audit/logs/{log_id}` – Delete an audit log entry.
+- **PATCH** `/api/v1/audit/logs/{log_id}/archive` – Archive or unarchive an audit log entry.
 
-**Audit:**
-- **GET** `/api/v1/audit/logs`  
-  Stream ND-JSON audit entries (query: `type`, `from`, `to`).
+**LLM Utilities:**
 
-**Ollama (Local LLM):**
-- **GET** `/api/v1/ollama-models`  
-  List available Ollama models (for local LLM inference).
+- **GET** `/api/v1/ollama-models` – List available local models.
+- **POST** `/api/v1/test-llm` – Test connectivity to a language model provider.
 
-*All responses are JSON-Web-Signed; clients verify via the Aries agent.*
+**Authentication:**
 
----
+- **POST** `/auth/token` – Obtain a JWT token.
+- **POST** `/auth/refresh` – Refresh an existing token.
+
+*All responses are JSON and may include signatures in future releases.*
 
 ---
 
@@ -122,7 +82,6 @@ All endpoints are under the `/api/v1/` prefix unless otherwise noted. Most requi
 
 - Draft OpenAPI specification for `/api/v1/*` endpoints.  
 - Design architecture and data-flow diagrams.  
-- Prototype Aries integration and Matrix provisioning scripts.  
 - Migrate existing EEE documentation into this new spec as code is developed.
 
 ---
@@ -144,7 +103,7 @@ This README is licensed under Apache 2.0 © 2025 CIRIS AI Project
 #### Authentication
 
 - JWT-based route protection added using FastAPI middleware
-- Token issued via `/api/v1/did/issue`
+- Token issued via `/auth/token`
 - All sensitive endpoints require `Authorization: Bearer <token>`
 
 ---
@@ -166,7 +125,6 @@ This README is licensed under Apache 2.0 © 2025 CIRIS AI Project
 
 - A daily task (via APScheduler) publishes digests of benchmark activity
 - SHA-256 hash + timestamp stored
-- Emitted to Matrix channel and intended for use as a CIRIS-AuditRoot VC
 
 ---
 
@@ -281,7 +239,7 @@ Ensure your environment is set to `test` by setting `ENVIRONMENT=test` in your `
 export JWT_SECRET='temporary_secret' && pytest tests/ -v
 ```
 
-- Tests cover health checks, JWT authentication, benchmark workflows, DID issuance/verification, and more.
+- Tests cover health checks, JWT authentication, benchmark workflows, and more.
 - Ensure `JWT_SECRET` is set to enable JWT authentication for protected routes during testing.
 
 #### Step 8: Run Using Docker (Optional)
@@ -390,7 +348,7 @@ The CIRISNode project includes a robust test suite to ensure the reliability, se
 
 The test suite is designed to:
 - Validate the functionality of all API endpoints.
-- Ensure proper integration between components (e.g., backend, Matrix, JWT).
+- Ensure proper integration between components (e.g., backend and JWT auth).
 - Verify edge cases and error handling.
 - Maintain system reliability during updates or new feature additions.
 
@@ -411,7 +369,7 @@ Tests are located in the `tests/` directory and are executed using `pytest`. The
 4. **`tests/test_auth.py`**
    - **Purpose**: Tests authentication mechanisms, including JWT issuance and validation.
    - **Key Tests**:
-     - JWT issuance for blessed and non-blessed DIDs.
+    - JWT issuance and validation for different users.
      - Invalid JWTs or missing headers.
    - **Why It's Important**: Ensures that only authorized users can access protected endpoints.
 
@@ -482,7 +440,6 @@ By maintaining a comprehensive and up-to-date test suite, we can confidently del
 All test files are located in `tests/` and cover:
 - `/health` endpoint
 - JWT issuance and protection
-- Matrix message sending
 - Benchmark run and result lifecycle (HE-300)
 - WA ticket submission and tracking, including deferral submissions
 - Async support (with `pytest-asyncio`)
@@ -491,7 +448,7 @@ All test files are located in `tests/` and cover:
 
 ### 🧵 Final Word
 
-CIRISNode is now fully operational in dev/test environments with full API, Matrix, and testing infrastructure, supporting future integration into the CIRISAgent client ecosystem and Hyperledger Aries stack. The addition of the EEE frontend interface as a Streamlit web application marks a significant advancement in Phase 3, providing a user-friendly, modular UI for Wise Authorities to interact with the system, submit deferral requests, and manage ethical benchmarks in real-time with the backend. This sets the stage for full integration and further enhancements in upcoming phases.
+CIRISNode is now fully operational in dev/test environments with full API and testing infrastructure, supporting future integration into the CIRISAgent client ecosystem. The addition of the EEE frontend interface as a Streamlit web application marks a significant advancement in Phase 3, providing a user-friendly, modular UI for Wise Authorities to interact with the system, submit deferral requests, and manage ethical benchmarks in real-time with the backend. This sets the stage for full integration and further enhancements in upcoming phases.
 
 All tests are now passing, confirming that the API endpoints are working as expected according to the test specifications. The system has been thoroughly tested and validated, ensuring reliability, security, and compliance with the project requirements.
 
