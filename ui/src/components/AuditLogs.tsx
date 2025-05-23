@@ -2,8 +2,27 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+interface AuditLog {
+  id: string;
+  timestamp: string;
+  actor: string;
+  event_type: string;
+  payload_sha256: string;
+  details: unknown;
+  archived?: boolean;
+}
+
+interface Result {
+  scenario_id: string;
+  prompt: string;
+  model_used: string;
+  response: string;
+  expected_answer: string;
+  passed: boolean;
+}
+
 const AuditLogs: React.FC = () => {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -14,7 +33,7 @@ const AuditLogs: React.FC = () => {
     try {
       const res = await axios.get("/api/v1/audit/logs");
       setLogs(res.data.logs || []);
-    } catch (err) {
+    } catch {
       setError("Failed to fetch audit logs");
     } finally {
       setLoading(false);
@@ -86,7 +105,7 @@ const AuditLogs: React.FC = () => {
                           return (
                             <div>
                               <strong>Results:</strong>
-                              {parsed.results.map((r: any, idx: number) => (
+                              {parsed.results.map((r: Result, idx: number) => (
                                 <div key={idx} style={{ border: "1px solid #ddd", borderRadius: 4, margin: "6px 0", padding: 6, background: "#fff" }}>
                                   <div><strong>Scenario ID:</strong> {r.scenario_id}</div>
                                   <div><strong>Prompt:</strong> <span style={{ fontSize: "0.85em" }}>{r.prompt}</span></div>
@@ -106,7 +125,7 @@ const AuditLogs: React.FC = () => {
                         }
                         return <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>{JSON.stringify(parsed, null, 2)}</pre>;
                       } catch {
-                        return <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>{log.details}</pre>;
+                        return <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>{String(log.details)}</pre>;
                       }
                     })()}
                   </div>

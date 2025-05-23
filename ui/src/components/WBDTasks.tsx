@@ -51,6 +51,7 @@ const WBDTasks: React.FC = () => {
 
   useEffect(() => {
     fetchTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stateFilter, sinceFilter]);
 
   const handleResolveTask = async (e: React.FormEvent) => {

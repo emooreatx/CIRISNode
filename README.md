@@ -10,17 +10,17 @@
 CIRISNode is the remote utility that CIRISAgent clients will call for:
 
 - **Alignment benchmarking** (Annex J HE-300 suite)  
-- **Governance workflows** (WA ticketing, audit anchoring)  
+- **Governance workflows** (Event recording)  
 
 ---
 
 ## 2  Core Responsibilities
 
 1. **Alignment API**  
-   Runs HE-300 scenarios, enforces pass/fail gates, returns signed benchmark reports.
+   Runs HE-300 scenarios, returns signed benchmark reports.
 
-2. **WA API**  
-   Receives Wisdom-Based Deferral packages, relays to Wise Authorities, streams replies.
+2. **WBD API**  
+   Receives Wisdom-Based Deferral packages and streams replies.
 
 3. **Audit Anchoring**
    Publishes daily SHA-256 digests of logs and benchmark results for transparency.
@@ -44,25 +44,17 @@ All endpoints use the `/api/v1` prefix unless noted otherwise. Most require a JW
 - **POST** `/api/v1/simplebench/run-sync` – Run a SimpleBench job synchronously.
 - **GET** `/api/v1/simplebench/results/{job_id}` – Retrieve SimpleBench results.
 
-**Wisdom‑Based Deferral (WBD) and WA:**
+**Wisdom‑Based Deferral (WBD):**
 
 - **POST** `/api/v1/wbd/submit` – Submit a deferral request.
 - **GET** `/api/v1/wbd/tasks` – List deferral tasks.
 - **POST** `/api/v1/wbd/tasks/{task_id}/resolve` – Approve or reject a deferral.
-- **POST** `/api/v1/wa/submit` – Store a deferral task using the WA backend.
-- **GET** `/api/v1/wa/tasks` – List stored WA tasks.
-- **POST** `/api/v1/wa/tasks/{task_id}/resolve` – Resolve a WA task.
-- **POST** `/api/v1/wa/deferral` – Placeholder endpoint for future deferral logic.
+- **GET** `/api/v1/wbd/corrections` – Poll for resolved tasks.
 
-**Agent Events and Audit:**
+**Agent Events:**
 
 - **POST** `/api/v1/agent/events` – Record agent events for auditing.
 - **GET** `/api/v1/agent/events` – List recorded agent events.
-- **DELETE** `/api/v1/agent/events/{event_id}` – Remove an agent event.
-- **PATCH** `/api/v1/agent/events/{event_id}/archive` – Archive or unarchive an event.
-- **GET** `/api/v1/audit/logs` – Retrieve audit log entries.
-- **DELETE** `/api/v1/audit/logs/{log_id}` – Delete an audit log entry.
-- **PATCH** `/api/v1/audit/logs/{log_id}/archive` – Archive or unarchive an audit log entry.
 
 **LLM Utilities:**
 
@@ -139,24 +131,7 @@ This README is licensed under Apache 2.0 © 2025 CIRIS AI Project
 
 #### Frontend Interface for EEE (Phase 1 Complete, Phase 3 Enhanced)
 
-A full offline-ready interface for Wise Authorities (WAs) has been developed and added to the repo at `frontend_eee/main.py`. Initially built as a Tkinter-based GUI in Phase 1, it has been upgraded in Phase 3 to a Streamlit web application for better usability and integration with the backend. The frontend now includes the following panels:
-  - **Deferral Inbox**: Review and take action on ponder, reject, and defer requests, with a form to submit new deferral requests directly to the backend.
-  - **DMA Actions Panel**: Trigger actions such as listen, useTool, and speak, integrated with the backend API.
-  - **Ethical Benchmark Simulation**: Interface to select and run benchmarks, displaying results from the backend.
-
-The Streamlit interface runs on `http://localhost:8501` and connects to the backend API at `http://localhost:8000/api/v1`, allowing real-time interaction with CIRISNode functionalities.
-
-🐳 Docker Integration (Phase 2 Ready)
-
-This frontend is now containerized and integrated into the `docker-compose.yml` file alongside the backend FastAPI app. Running both together enables real-time local testing and future backend binding. To launch:
-
-```bash
-docker-compose up --build
-```
-
-Then visit:
-  - **Frontend UI**: `http://localhost:8501`
-  - **Backend API**: `http://localhost:8000/docs`
+*The Streamlit-based frontend and related files have been removed. All frontend functionality is deprecated in this repository.*
 
 ---
 
@@ -340,7 +315,7 @@ For additional help, check the GitHub repository issues or contact the project m
 
 ### 🧪 Comprehensive Test Suite Guide
 
-The CIRISNode project includes a robust test suite to ensure the reliability, security, and functionality of the system. This guide provides an overview of the test suite, a breakdown of each test file, and instructions for editing or adding tests.
+*The test suite and all related files have been removed from this repository.*
 
 ---
 
@@ -358,56 +333,7 @@ Tests are located in the `tests/` directory and are executed using `pytest`. The
 
 #### Breakdown of Test Files
 
-
-3. **`tests/test_apply.py`**
-   - **Purpose**: Tests the `/apply` endpoints for graph updates (e.g., ENV_GRAPH, ID_GRAPH).
-   - **Key Tests**:
-     - Valid graph updates.
-     - Invalid graph types or missing headers.
-   - **Why It's Important**: Ensures that graph updates are applied correctly and securely.
-
-4. **`tests/test_auth.py`**
-   - **Purpose**: Tests authentication mechanisms, including JWT issuance and validation.
-   - **Key Tests**:
-    - JWT issuance and validation for different users.
-     - Invalid JWTs or missing headers.
-   - **Why It's Important**: Ensures that only authorized users can access protected endpoints.
-
-5. **`tests/test_benchmarks.py`**
-   - **Purpose**: Tests the `/benchmarks` endpoints for running and retrieving HE-300 benchmarks.
-   - **Key Tests**:
-     - Valid benchmark runs.
-     - Missing or invalid parameters.
-   - **Why It's Important**: Validates the core benchmarking functionality of the system.
-
-6. **`tests/test_deferral.py`**
-   - **Purpose**: Tests the `/wa/deferral` endpoint for handling deferral requests.
-   - **Key Tests**:
-     - Valid deferral submissions.
-     - Invalid deferral types or missing parameters.
-   - **Why It's Important**: Ensures that deferral requests are processed correctly and invalid requests are rejected.
-
-8. **`tests/test_health.py`**
-   - **Purpose**: Tests the `/health` endpoint for system health checks.
-   - **Key Tests**:
-     - Valid health check responses.
-     - Missing or invalid headers.
-   - **Why It's Important**: Provides a quick way to verify system availability.
-
-9. **`tests/test_jwt_auth.py`**
-   - **Purpose**: Tests JWT issuance and access to protected endpoints.
-   - **Key Tests**:
-     - Valid and invalid JWTs.
-     - Access to protected endpoints with and without valid tokens.
-   - **Why It's Important**: Ensures that JWT-based authentication is functioning correctly.
-
-
-14. **`tests/test_wa.py`**
-    - **Purpose**: Tests the `/wa` endpoints for ticket submissions and deferral handling.
-    - **Key Tests**:
-      - Valid ticket submissions.
-      - Valid and invalid deferral requests.
-    - **Why It's Important**: Ensures that WA-related workflows are functioning correctly.
+*All test files have been removed from this repository. Testing instructions and references are deprecated.*
 
 ---
 
@@ -437,14 +363,9 @@ By maintaining a comprehensive and up-to-date test suite, we can confidently del
 
 ### 🧪 Test Suite Coverage
 
-All test files are located in `tests/` and cover:
-- `/health` endpoint
-- JWT issuance and protection
-- Benchmark run and result lifecycle (HE-300)
-- WA ticket submission and tracking, including deferral submissions
-- Async support (with `pytest-asyncio`)
-- Config loading from `.env`
+*Test coverage information is no longer applicable as all tests have been removed.*
 
+---
 
 ### 🧵 Final Word
 
