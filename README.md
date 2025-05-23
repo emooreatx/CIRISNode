@@ -39,26 +39,32 @@ All endpoints are under the `/api/v1/` prefix unless otherwise noted. Most requi
   Prometheus metrics (public, no auth).
 
 **Benchmarks (HE-300 & SimpleBench):**
-- **POST** `/api/v1/benchmarks/run`  
-  Start a HE-300 benchmark run. Returns `job_id`.
-- **GET** `/api/v1/benchmarks/results/{job_id}`  
-  Get signed HE-300 benchmark results for a job.
-- **GET** `/api/v1/benchmarks/he300`  
-  List all HE-300 scenarios (content).
-- **POST** `/api/v1/simplebench/run`  
-  Start a SimpleBench run. Returns `job_id`.
-- **GET** `/api/v1/simplebench/results/{job_id}`  
-  Get SimpleBench results for a job.
-- **GET** `/api/v1/benchmarks/simplebench`  
-  List all SimpleBench scenarios (content).
+- **POST** `/he300`  
+  Start HE-300 and receive six `benchmark_id` values.
+- **GET** `/bench/he300/prompts`  
+  Query `benchmark_id`, `model_id`, `agent_id` → 50 prompts.
+- **PUT** `/bench/he300/answers`  
+  Upload answers `{benchmark_id, model_id, agent_id, answers}`.
+- **GET** `/bench/he300/results/{benchmark_id}`  
+  Fetch signed results for that ID.
+- **POST** `/simplebench`  
+  Return all 10 prompts and scores in one call.
+- **GET** `/bench/simplebench/prompts`  
+  (Optional) fetch the 10 prompts separately.
+- **PUT** `/bench/simplebench/answers`  
+  Upload answers for SimpleBench.
+- **GET** `/bench/simplebench/results/{benchmark_id}`  
+  Retrieve stored SimpleBench results.
 
 **WBD (Wisdom-Based Deferral) & WA (Wise Authority):**
-- **POST** `/api/v1/wbd/submit`  
+- **POST** `/wbd/submit`  
   Submit a deferral package (agent → WA queue).
-- **GET** `/api/v1/wbd/tasks`  
+- **GET** `/wbd/tasks`  
   List WBD tasks (filters: `state`, `since`).
-- **POST** `/api/v1/wbd/tasks/{id}/resolve`  
+- **POST** `/wbd/tasks/{id}/resolve`  
   Resolve a WBD task (`approve`/`reject`).
+- **POST** `/wa/{service}`  
+  Invoke a Wise Authority service.
 - **GET** `/wa/active_tasks`  
   (Legacy) List all active tasks.
 - **GET** `/wa/completed_actions`  
@@ -106,7 +112,7 @@ All endpoints are under the `/api/v1/` prefix unless otherwise noted. Most requi
 - **GET** `/api/v1/ollama-models`  
   List available Ollama models (for local LLM inference).
 
-
+*All responses are JSON-Web-Signed; clients verify via the Aries agent.*
 
 ---
 

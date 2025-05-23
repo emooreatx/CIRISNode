@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from cirisnode.api.audit.routes import audit_router
-from cirisnode.api.benchmarks.routes import simplebench_router
+from cirisnode.api.benchmarks.routes import simplebench_router, benchmarks_router
 from cirisnode.api.ollama.routes import ollama_router
 from cirisnode.api.wbd.routes import wbd_router
 from cirisnode.api.llm.routes import llm_router
 from cirisnode.api.health.routes import router as health_router
 from cirisnode.api.agent.routes import agent_router
+from cirisnode.api.auth.routes import auth_router
+from cirisnode.api.wa.routes import wa_router
 
 app = FastAPI()
 
@@ -25,6 +27,9 @@ app.include_router(wbd_router)
 app.include_router(llm_router)
 app.include_router(health_router)
 app.include_router(agent_router)
+app.include_router(auth_router)
+app.include_router(benchmarks_router)
+app.include_router(wa_router)
 
 @app.get("/metrics")
 def metrics():

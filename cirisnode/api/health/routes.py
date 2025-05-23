@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from cirisnode.config import settings
+from datetime import datetime
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api/v1/health", tags=["health"])
 
-@router.get("/health")
-async def health_check():
+@router.get("")
+def health_check(request: Request):
     return {
         "status": "ok",
-        "version": "1.0.0",  # Placeholder version
+        "version": "1.0.0",
+        "pubkey": "dummy-pubkey",
+        "message": "CIRISNode is healthy",
+        "timestamp": datetime.utcnow().isoformat()
     }

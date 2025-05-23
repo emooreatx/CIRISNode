@@ -1,53 +1,68 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 import uuid
-from cirisnode.db.active_tasks import get_active_wbd_tasks, submit_wbd_task, resolve_wbd_task
 
 wbd_router = APIRouter(prefix="/api/v1/wbd", tags=["wbd"])
 
-# Placeholder implementations for missing functions
-def get_active_wbd_tasks(state=None, since=None):
-    return []
+# In-memory store for demonstration
+wbd_tasks = {}
 
-def submit_wbd_task(task_id, agent_task_id, payload):
-    pass
+class WBDSubmitRequest(BaseModel):
+    agent_task_id: str
+    payload: str
 
-def resolve_wbd_task(task_id, decision, comment=None):
-    pass
+class WBDResolveRequest(BaseModel):
+    decision: str  # "approve" or "reject"
+    comment: Optional[str] = None
 
-from fastapi import Depends
-from cirisnode.database import get_db
+@wbd_router.post("/submit")
+def submit_wbd_task(request: WBDSubmitRequest):
+    task_id = str(uuid.uuid4())
+    wbd_tasks[task_id] = {
+        "agent_task_id": request.agent_task_id,
+        "payload": request.payload,
+        "status": "open",
+        "created_at": datetime.utcnow().isoformat(),
+        "decision": None,
+        "comment": None
+    }
+    return {
+        "status": "success",
+        "task_id": task_id,
+        "message": "WBD task submitted successfully",
+        "details": {
+            "agent_task_id": request.agent_task_id,
+            "payload": request.payload,
+            "status": "open",
+            "created_at": wbd_tasks[task_id]["created_at"],
+        },
+    }
 
 @wbd_router.get("/tasks")
-async def get_wbd_tasks(state: Optional[str] = None, since: Optional[str] = None, db=Depends(get_db)):
-    """
-    List open WBD tasks. Filters: `state`, `since`.
-    """
-    conn = next(db) if hasattr(db, "__iter__") and not isinstance(db, (str, bytes)) else db
-    query = "SELECT id, agent_task_id, status, created_at, decision, comment FROM wbd_tasks WHERE 1=1"
-    params = []
-    if state:
-        query += " AND status = ?"
-        params.append(state)
-    if since:
-        query += " AND created_at >= ?"
-        params.append(since)
-    query += " ORDER BY created_at DESC"
-    cur = conn.execute(query, tuple(params))
-    rows = cur.fetchall()
-    tasks = [
-        {
-            "id": str(row[0]),
-            "agent_task_id": str(row[1]),
-            "status": str(row[2]),
-            "created_at": str(row[3]),
-            "decision": str(row[4]) if row[4] is not None else None,
-            "comment": str(row[5]) if row[5] is not None else None,
-            "archived": bool(row[6]) if len(row) > 6 else False
-        }
-        for row in rows
-    ]
-    return {"tasks": tasks}
+def get_wbd_tasks():
+    return {"tasks": [
+        {"id": task_id, **task}
+        for task_id, task in wbd_tasks.items()
+    ]}
 
-# ... rest of the file unchanged ...
+@wbd_router.post("/tasks/{task_id}/resolve")
+def resolve_wbd_task(task_id: str, request: WBDResolveRequest):
+    if task_id not in wbd_tasks:
+        raise HTTPException(status_code=404, detail=f"WBD task with ID {task_id} not found")
+    if request.decision not in ["approve", "reject"]:
+        raise HTTPException(status_code=400, detail="Decision must be 'approve' or 'reject'")
+    wbd_tasks[task_id]["status"] = "resolved"
+    wbd_tasks[task_id]["decision"] = request.decision
+    wbd_tasks[task_id]["comment"] = request.comment
+    return {
+        "status": "success",
+        "task_id": task_id,
+        "message": f"WBD task resolved with decision: {request.decision}",
+        "details": {
+            "decision": request.decision,
+            "comment": request.comment,
+            "resolved_at": datetime.utcnow().isoformat(),
+        },
+    }

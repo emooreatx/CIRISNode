@@ -1,11 +1,12 @@
 from fastapi.testclient import TestClient
 from cirisnode.main import app
-from cirisnode.api.auth.dependencies import create_access_token
+import jwt
 
 client = TestClient(app)
 
+TEST_SECRET = "testsecret"
 def get_auth_header():
-    token = create_access_token(data={"sub": "testuser"})
+    token = jwt.encode({"sub": "testuser"}, TEST_SECRET, algorithm="HS256")
     return {"Authorization": f"Bearer {token}"}
 
 def test_run_benchmark():
