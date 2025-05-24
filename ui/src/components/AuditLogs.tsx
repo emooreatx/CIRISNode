@@ -29,6 +29,7 @@ const AuditLogs: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
+  // Fetch logs handler for manual refresh
   const fetchLogs = async () => {
     setLoading(true);
     setError(null);
@@ -45,6 +46,7 @@ const AuditLogs: React.FC = () => {
 
   useEffect(() => {
     fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // If not loading and logs is empty, show a test log
