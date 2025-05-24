@@ -37,3 +37,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details JSONB,
     archived INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT,
+    role TEXT NOT NULL DEFAULT 'anonymous'
+);
+
+-- Versioned configuration stored as a single JSON blob
+CREATE TABLE IF NOT EXISTS config (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    version INTEGER NOT NULL,
+    config_json TEXT NOT NULL
+);
