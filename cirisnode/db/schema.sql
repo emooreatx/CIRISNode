@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT,
-    role TEXT NOT NULL DEFAULT 'anonymous'
+    role TEXT NOT NULL DEFAULT 'anonymous',
+    groups TEXT DEFAULT '', -- comma-separated group names
+    oauth_provider TEXT,    -- e.g. 'google', 'discord'
+    oauth_sub TEXT          -- subject/ID from OAuth provider
 );
 
 -- Versioned configuration stored as a single JSON blob

@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   api:
     image: alignordie/cirisnode:backend-latest
@@ -42,7 +41,8 @@ services:
       - "6380:6379"
 
   ui:
-    image: alignordie/cirisnode:ui-latest
+    build:
+      context: ./ui
     ports:
       - "3004:3000"
     env_file:

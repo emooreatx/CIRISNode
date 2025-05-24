@@ -17,14 +17,18 @@ def _get_token(username: str):
 
 
 def test_config_access_rbac():
+    # Ensure anon user exists
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)", ("anon", "pwd", "anonymous"))
+    # Ensure admin user exists with correct password and role
+    conn.execute("INSERT OR REPLACE INTO users (username, password, role) VALUES (?, ?, ?)", ("admin", "pwd", "admin"))
+    conn.commit()
+    conn.close()
+
     anon_token = _get_token("anon")
     r = client.get("/api/v1/config", headers={"Authorization": f"Bearer {anon_token}"})
     assert r.status_code == 403
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("UPDATE users SET role = 'admin' WHERE username = ?", ("admin",))
-    conn.commit()
-    conn.close()
     admin_token = _get_token("admin")
     r = client.get("/api/v1/config", headers={"Authorization": f"Bearer {admin_token}"})
     assert r.status_code == 200

@@ -1,6 +1,9 @@
 from fastapi import Depends, HTTPException, Header, status
 import jwt
-from cirisnode.api.auth.routes import SECRET_KEY, ALGORITHM
+from cirisnode.config import settings
+
+SECRET_KEY = getattr(settings, "JWT_SECRET", "testsecret")
+ALGORITHM = "HS256"
 
 
 def get_current_role(Authorization: str = Header(...)) -> str:
